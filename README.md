@@ -13,7 +13,7 @@ Ok! Beware, this is a realistic example, but the parameters are all fake and wou
 
 Input Parameters: 
 
-* '00AB123456'
+* 00AB123456
 * mainUpstreamIfc
 
 Result:
@@ -27,6 +27,18 @@ Needed request sequence:
 3. /scopes/mbsXZY001-01-pc/cmts → mbsXZY001
 4. /cmts/mbsXZY001/modem/00AB123456/cmId → 203342
 5. /cmts/mbsXZY001/ip → 62.2.11.22
-6. /snmp/62.2.11.22/1.3.6.2.1.2.3.4.20334 → 'L1/0/1/1'
+6. /snmp/62.2.11.22/1.3.6.2.1.2.3.4.20334 → L1/0/1/1
 
-The outcome of the request should be the string 'L1/0/1/1'.
+The outcome of the request should be the string L1/0/1/1.
+
+## Project structure ##
+
+*   qepoc-mock: A Mock for the requests. 
+ 
+    Compile: 
+	```
+	cd /path/to/qepoc-mock
+    mvn clean package
+    java -jar target/qepoc-mock-1.0-SNAPSHOT.jar
+    ```
+    
