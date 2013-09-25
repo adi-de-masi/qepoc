@@ -39,6 +39,37 @@ The outcome of the request should be the string L1/0/1/1.
 	```
 	cd /path/to/qepoc-mock
     mvn clean package
-    java -jar target/qepoc-mock-1.0-SNAPSHOT.jar
     ```
-    
+    Run:
+    ```
+    java -jar target/qepoc-mock-1.0-SNAPSHOT.jar
+    >starting up server...
+	>… ready, listening at port 4321.
+	>Say 'Bye.' to disconnect.
+	>Say 'Shut.' to shutdown.
+    ```
+    Use:
+    ```
+    telnet localhost 4321
+    Trying ::1...
+	Connected to localhost.
+	Escape character is '^]'.
+	Welcome, young padavan. Send me your request!
+	/modem/00AB123456/ip
+	10.30.22.12
+	```
+	Disconnect but let the server run:
+	```
+	telnet localhost 4321
+	Bye.
+	
+	Bye.
+	Connection closed by foreign host.
+	```
+    Terminate:
+    ```
+    telnet localhost 4321
+    Shut.
+    Bye.
+	Connection closed by foreign host.
+	```
