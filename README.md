@@ -58,6 +58,11 @@ The outcome of the request should be the string L1/0/1/1.
 	/modem/00AB123456/ip
 	10.30.22.12
 	```
+	or use the java client!
+	```
+	String result = Client.query("/modem/00AB123456/ip");
+	```
+	
 	Disconnect but let the server run:
 	```
 	telnet localhost 4321
