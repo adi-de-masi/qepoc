@@ -3,6 +3,8 @@
  */
 package ch.upc.ctsp.qepoc.rest.impl;
 
+import java.io.IOException;
+
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -12,17 +14,30 @@ import lombok.EqualsAndHashCode;
  */
 @Data
 @EqualsAndHashCode(
-    callSuper = true)
+        callSuper = true)
 public class VariableNode extends AbstractRegistryNode {
-  private RegistryNode subNode;
+    private AbstractRegistryNode subNode;
 
-  public VariableNode(final AbstractRegistryNode parentNode) {
-    super(parentNode);
-  }
+    public VariableNode(final AbstractRegistryNode parentNode) {
+        super(parentNode);
+    }
 
-  @Override
-  protected String getComponentNameOf(final RegistryNode childNode) {
-    return "*";
-  }
+    /*
+     * (non-Javadoc)
+     * 
+     * @see ch.upc.ctsp.qepoc.rest.impl.AbstractRegistryNode#dumpValue(java.lang.Appendable, int)
+     */
+    @Override
+    protected void dumpValue(final Appendable out, final int level) throws IOException {
+        intent(out, level);
+        out.append("*");
+        out.append("\n");
+        subNode.dumpValue(out, level + 1);
+    }
+
+    @Override
+    protected String getComponentNameOf(final RegistryNode childNode) {
+        return "*";
+    }
 
 }

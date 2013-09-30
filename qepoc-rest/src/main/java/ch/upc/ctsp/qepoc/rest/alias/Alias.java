@@ -5,8 +5,12 @@ package ch.upc.ctsp.qepoc.rest.alias;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -17,6 +21,7 @@ import lombok.Data;
 import ch.upc.ctsp.qepoc.rest.Query;
 import ch.upc.ctsp.qepoc.rest.model.CallbackFuture;
 import ch.upc.ctsp.qepoc.rest.model.CallbackFuture.CallbackHandler;
+import ch.upc.ctsp.qepoc.rest.model.PathDescription;
 import ch.upc.ctsp.qepoc.rest.model.QueryRequest;
 import ch.upc.ctsp.qepoc.rest.model.QueryResult;
 import ch.upc.ctsp.qepoc.rest.spi.Backend;
@@ -28,6 +33,7 @@ import ch.upc.ctsp.qepoc.rest.spi.DirectResult;
  * 
  */
 public class Alias implements Backend {
+
     public static class Builder implements PathBuilder {
         private final List<ComponentEntry> path = new ArrayList<Alias.ComponentEntry>();
 
@@ -93,12 +99,14 @@ public class Alias implements Backend {
         @Override
         public String toString() {
             final StringBuilder builder = new StringBuilder();
+            builder.append('<');
             for (final ComponentEntry comp : lookupPath) {
                 if (builder.length() > 0) {
                     builder.append("/");
                 }
                 builder.append(comp);
             }
+            builder.append('>');
             return builder.toString();
         }
     }
@@ -107,6 +115,26 @@ public class Alias implements Backend {
     private static class PatternComponentEntry implements ComponentEntry {
         private final MessageFormat        pattern;
         private final List<ComponentEntry> patternVariables;
+
+        @Override
+        public String toString() {
+            final StringBuffer sb = new StringBuffer();
+            sb.append("[");
+            sb.append(pattern.toPattern());
+            if (!patternVariables.isEmpty()) {
+                sb.append(":");
+                boolean first = true;
+                for (final ComponentEntry variable : patternVariables) {
+                    if (!first) {
+                        sb.append(",");
+                    }
+                    sb.append(variable.toString());
+                    first = false;
+                }
+            }
+            sb.append("]");
+            return sb.toString();
+        }
     }
 
     private interface ProcessAsyncResponse<R, C> {
@@ -121,6 +149,86 @@ public class Alias implements Backend {
         public String toString() {
             return "{" + variableName + "}";
         }
+    }
+
+    public static Map<PathDescription, Alias> parseProperties(final Properties props) {
+        final HashMap<PathDescription, Alias> ret = new HashMap<PathDescription, Alias>();
+        for (final Entry<Object, Object> aliasEntry : props.entrySet()) {
+            final PathDescription targetPath = PathDescription.createFromString(aliasEntry.getKey().toString());
+            final String rule = (String) aliasEntry.getValue();
+            final Builder builder = new Builder();
+            final LinkedList<PathBuilder> builderStack = new LinkedList<Alias.PathBuilder>();
+            builderStack.add(builder);
+            boolean patternMode = false;
+            final StringBuilder currenName = new StringBuilder();
+            for (int i = 0; i < rule.length(); i++) {
+                final char currentChar = rule.charAt(i);
+                switch (currentChar) {
+                    case '/':
+                        if (currenName.length() > 0) {
+                            builderStack.getLast().addConstEntry(currenName.toString());
+                        }
+                        currenName.setLength(0);
+                        break;
+                    case '<':
+                        builderStack.add(builderStack.getLast().createSubpath());
+                        break;
+                    case '>':
+                        if (currenName.length() > 0) {
+                            builderStack.getLast().addConstEntry(currenName.toString());
+                        }
+                        currenName.setLength(0);
+                        builderStack.removeLast();
+                        break;
+                    case '[':
+                        currenName.setLength(0);
+                        patternMode = true;
+                        break;
+                    case ':':
+                        patternMode = false;
+                        builderStack.add(builderStack.getLast().createPatternEntry(currenName.toString()));
+                        builderStack.add(builderStack.getLast().createSubpath());
+                        currenName.setLength(0);
+                        break;
+                    case ',':
+                        if (currenName.length() > 0) {
+                            builderStack.getLast().addConstEntry(currenName.toString());
+                        }
+                        currenName.setLength(0);
+                        builderStack.removeLast();
+                        builderStack.add(builderStack.getLast().createSubpath());
+                        break;
+                    case ']':
+                        if (currenName.length() > 0) {
+                            builderStack.getLast().addConstEntry(currenName.toString());
+                        }
+                        currenName.setLength(0);
+                        builderStack.removeLast();
+                        builderStack.removeLast();
+                        break;
+                    default:
+                        if (!patternMode) {
+                            if (currentChar == '}') {
+                                if (currenName.length() > 0) {
+                                    builderStack.getLast().addVariableEntry(currenName.toString());
+                                }
+                                currenName.setLength(0);
+                            } else if (currentChar != '{') {
+                                currenName.append(currentChar);
+                            }
+                        } else {
+                            currenName.append(currentChar);
+                        }
+                        break;
+                }
+            }
+            if (currenName.length() > 0) {
+                builderStack.getLast().addConstEntry(currenName.toString());
+            }
+            currenName.setLength(0);
+            ret.put(targetPath, builder.build());
+        }
+        return ret;
     }
 
     private final LookupComponentEntry lookup;

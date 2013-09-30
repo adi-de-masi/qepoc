@@ -29,6 +29,15 @@ public class QueryImpl implements Query {
     private final FixedListNode            rootNode   = new FixedListNode(null);
     private final Map<String, QueryResult> oldResults = new HashMap<String, QueryResult>();
 
+    /**
+     * @return
+     * 
+     */
+    public String dump() {
+        return rootNode.dump();
+
+    }
+
     /*
      * (non-Javadoc)
      * 
@@ -36,36 +45,40 @@ public class QueryImpl implements Query {
      */
     @Override
     public CallbackFuture<QueryResult> query(final QueryRequest request) {
-        final String key = createKeyFromPath(request.getPath());
-        synchronized (oldResults) {
-            final QueryResult oldResult = oldResults.get(key);
-            if (oldResult != null && oldResult.getCreationDate().after(request.getAllowedSince())) {
-                return new DirectResult<QueryResult>(oldResult);
+        try {
+            final String key = createKeyFromPath(request.getPath());
+            synchronized (oldResults) {
+                final QueryResult oldResult = oldResults.get(key);
+                if (oldResult != null && oldResult.getCreationDate().after(request.getAllowedSince())) {
+                    return new DirectResult<QueryResult>(oldResult);
+                }
             }
+            AbstractRegistryNode currentNode = rootNode;
+            final List<String> path = request.getPath();
+            final List<String> parameters = new ArrayList<String>();
+            int pathLength = 0;
+            for (final String pathComp : path) {
+                pathLength += 1;
+                final AbstractRegistryNode nextNode;
+                if (currentNode instanceof FixedListNode) {
+                    nextNode = ((FixedListNode) currentNode).getSubNodes().get(pathComp);
+                } else if (currentNode instanceof VariableNode) {
+                    nextNode = ((VariableNode) currentNode).getSubNode();
+                    parameters.add(pathComp);
+                } else if (currentNode instanceof BackendNode) {
+                    return callBackend((BackendNode) currentNode, request, parameters, pathLength - 1);
+                } else {
+                    throw new RuntimeException("Unknown Node Type " + currentNode);
+                }
+                if (nextNode == null) {
+                    throw new RuntimeException("Cannot resolve Path " + path);
+                }
+                currentNode = nextNode;
+            }
+            return callBackend((BackendNode) currentNode, request, parameters, pathLength);
+        } catch (final Throwable t) {
+            throw new RuntimeException("Exception in Path " + request.getPath(), t);
         }
-        AbstractRegistryNode currentNode = rootNode;
-        final List<String> path = request.getPath();
-        final List<String> parameters = new ArrayList<String>();
-        int pathLength = 0;
-        for (final String pathComp : path) {
-            pathLength += 1;
-            final AbstractRegistryNode nextNode;
-            if (currentNode instanceof FixedListNode) {
-                nextNode = ((FixedListNode) currentNode).getSubNodes().get(pathComp);
-            } else if (currentNode instanceof VariableNode) {
-                nextNode = (AbstractRegistryNode) ((VariableNode) currentNode).getSubNode();
-                parameters.add(pathComp);
-            } else if (currentNode instanceof BackendNode) {
-                return callBackend((BackendNode) currentNode, request, parameters, pathLength - 1);
-            } else {
-                throw new RuntimeException("Unknown Node Type " + currentNode);
-            }
-            if (nextNode == null) {
-                throw new RuntimeException("Cannot resolve Path " + path);
-            }
-            currentNode = nextNode;
-        }
-        return callBackend((BackendNode) currentNode, request, parameters, pathLength);
     }
 
     public void registerBackend(final PathDescription path, final Backend backend) {
@@ -95,7 +108,7 @@ public class QueryImpl implements Query {
                 if (currentNode instanceof VariableNode) {
                     final VariableNode variableNode = (VariableNode) currentNode;
                     variableNames.add(((VariablePathComp) currentPathComp).getVariableName());
-                    final AbstractRegistryNode existingSubNode = (AbstractRegistryNode) variableNode.getSubNode();
+                    final AbstractRegistryNode existingSubNode = variableNode.getSubNode();
                     if (existingSubNode != null) {
                         currentNode = existingSubNode;
                         continue;
