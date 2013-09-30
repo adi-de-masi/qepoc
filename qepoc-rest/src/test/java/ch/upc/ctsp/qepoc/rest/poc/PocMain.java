@@ -27,22 +27,24 @@ import ch.upc.ctsp.qepoc.rest.spi.DirectResult;
  * 
  */
 public class PocMain {
+    private static class SimpleMockBackend implements Backend {
+        @Override
+        public CallbackFuture<QueryResult> query(final QueryRequest request, final Map<String, String> parameters, final Query executingQuery) {
+            final List<String> path = request.getPath();
+            final List<String> remainingPath = path.subList(Integer.parseInt(parameters.get("match-length")), path.size());
+            try {
+                final String result = Client.query("/" + StringUtils.join(remainingPath, '/'));
+                return new DirectResult<QueryResult>(new QueryResult(result.trim()));
+            } catch (final Throwable e) {
+                throw new RuntimeException("Cannot call " + remainingPath, e);
+            }
+        }
+    }
+
     public static void main(final String args[]) throws IOException, InterruptedException, ExecutionException {
         final QueryImpl query = new QueryImpl();
-        query.registerBackend(PathDescription.createFromString("mock"), new Backend() {
+        query.registerBackend(PathDescription.createFromString("mock"), new SimpleMockBackend());
 
-            @Override
-            public CallbackFuture<QueryResult> query(final QueryRequest request, final Map<String, String> parameters, final Query executingQuery) {
-                final List<String> path = request.getPath();
-                final List<String> remainingPath = path.subList(Integer.parseInt(parameters.get("match-length")), path.size());
-                try {
-                    final String result = Client.query("/" + StringUtils.join(remainingPath, '/'));
-                    return new DirectResult<QueryResult>(new QueryResult(result.trim()));
-                } catch (final Throwable e) {
-                    throw new RuntimeException("Cannot call " + remainingPath, e);
-                }
-            }
-        });
         query.registerBackend(PathDescription.createFromString("modem/{mac}/ip"), new Alias.Builder().addConstEntry("mock").addConstEntry("modem")
                 .addVariableEntry("mac").addConstEntry("ip").build());
 
