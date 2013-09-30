@@ -34,12 +34,16 @@ public class TestQuery {
                 return new DirectResult(QueryResult.newWithLifeTime(parameters.get("value"), 5));
             }
         });
-        final Alias alias = new Alias.Builder().addConstEntry("value").addVariableEntry("value").build();
-        query.registerBackend(PathDescription.createFromString("alias/{value}"), alias);
+        final Alias alias1 = new Alias.Builder().addConstEntry("value").addVariableEntry("value").build();
+        query.registerBackend(PathDescription.createFromString("alias1/{value}"), alias1);
+        final Alias alias2 = new Alias.Builder().addConstEntry("value").build();
+        query.registerBackend(PathDescription.createFromString("alias2"), alias2);
         final String value = query.query(QueryRequest.createRequest("value/Hello World")).get().getValue();
         assertEquals("Hello World", value);
-        final String aliasValue = query.query(QueryRequest.createRequest("alias/Hello Mirror World")).get().getValue();
+        final String aliasValue = query.query(QueryRequest.createRequest("alias1/Hello Mirror World")).get().getValue();
         assertEquals("Hello Mirror World", aliasValue);
+        final String secondAliasValue = query.query(QueryRequest.createRequest("alias2/Hello second Mirror World")).get().getValue();
+        assertEquals("Hello second Mirror World", secondAliasValue);
     }
 
     @Test

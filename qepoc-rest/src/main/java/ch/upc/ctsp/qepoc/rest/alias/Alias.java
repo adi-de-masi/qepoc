@@ -111,7 +111,15 @@ public class Alias implements Backend {
 
     @Override
     public CallbackFuture<QueryResult> query(final QueryRequest request, final Map<String, String> parameters, final Query query) {
-        return processLookup(lookup, request, parameters, query);
+        final int matchLength = Integer.parseInt(parameters.get("match-length"));
+        final List<String> requestPath = request.getPath();
+        final List<String> appendPath;
+        if (matchLength != requestPath.size()) {
+            appendPath = requestPath.subList(matchLength, requestPath.size());
+        } else {
+            appendPath = null;
+        }
+        return processLookup(lookup, request, parameters, query, appendPath);
     }
 
     @Override
@@ -135,7 +143,7 @@ public class Alias implements Backend {
             return new DirectResult<String>(parameters.get(((VariableComponentEntry) componentEntry).getVariableName()));
         }
         if (componentEntry instanceof LookupComponentEntry) {
-            final CallbackFuture<QueryResult> processLookup = processLookup((LookupComponentEntry) componentEntry, request, parameters, query);
+            final CallbackFuture<QueryResult> processLookup = processLookup((LookupComponentEntry) componentEntry, request, parameters, query, null);
             return new CallbackFuture<String>() {
 
                 @Override
@@ -184,7 +192,7 @@ public class Alias implements Backend {
     }
 
     private CallbackFuture<QueryResult> processLookup(final LookupComponentEntry lookup, final QueryRequest request,
-            final Map<String, String> parameters, final Query query) {
+            final Map<String, String> parameters, final Query query, final List<String> appendPath) {
         final List<CallbackFuture<String>> componentLookups = new ArrayList<CallbackFuture<String>>();
         for (final ComponentEntry componentEntry : lookup.getLookupPath()) {
             componentLookups.add(createComponentLookup(componentEntry, request, parameters, query));
@@ -213,6 +221,9 @@ public class Alias implements Backend {
         final ArrayList<String> componentValues = new ArrayList<String>(componentCount);
         while (componentValues.size() < componentCount) {
             componentValues.add(null);
+        }
+        if (appendPath != null) {
+            componentValues.addAll(appendPath);
         }
         final AtomicInteger returnedResults = new AtomicInteger(0);
         for (int i = 0; i < componentCount; i++) {
