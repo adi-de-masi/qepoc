@@ -3,6 +3,7 @@
  */
 package ch.upc.ctsp.qepoc.rest.alias;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +48,13 @@ public class Alias implements Backend {
         }
 
         @Override
+        public PathBuilder createPatternEntry(final String pattern) {
+            final Builder builder = new Builder();
+            path.add(new PatternComponentEntry(new MessageFormat(pattern), builder.path));
+            return builder;
+        }
+
+        @Override
         public PathBuilder createSubpath() {
             final Builder builder = new Builder();
             path.add(new LookupComponentEntry(builder.path));
@@ -60,6 +68,8 @@ public class Alias implements Backend {
         PathBuilder addVariableEntry(final String variableName);
 
         PathBuilder createSubpath();
+
+        PathBuilder createPatternEntry(final String pattern);
     }
 
     private interface ComponentEntry {
@@ -91,6 +101,16 @@ public class Alias implements Backend {
             }
             return builder.toString();
         }
+    }
+
+    @Data
+    private static class PatternComponentEntry implements ComponentEntry {
+        private final MessageFormat        pattern;
+        private final List<ComponentEntry> patternVariables;
+    }
+
+    private interface ProcessAsyncResponse<R, C> {
+        R processResponses(final List<C> components);
     }
 
     @Data
@@ -188,17 +208,30 @@ public class Alias implements Backend {
                 }
             };
         }
+        if (componentEntry instanceof PatternComponentEntry) {
+            final PatternComponentEntry patternEntry = (PatternComponentEntry) componentEntry;
+
+            return processComponents(patternEntry.getPatternVariables(), new ProcessAsyncResponse<CallbackFuture<String>, String>() {
+
+                @Override
+                public CallbackFuture<String> processResponses(final List<String> components) {
+                    return new DirectResult<String>(patternEntry.pattern.format(components.toArray(new String[components.size()])));
+                }
+
+            }, request, parameters, query);
+        }
         throw new IllegalArgumentException("Component-Type " + componentEntry.getClass() + " not supported");
     }
 
-    private CallbackFuture<QueryResult> processLookup(final LookupComponentEntry lookup, final QueryRequest request,
-            final Map<String, String> parameters, final Query query, final List<String> appendPath) {
+    private <R> CallbackFuture<R> processComponents(final List<ComponentEntry> components,
+            final ProcessAsyncResponse<CallbackFuture<R>, String> processor, final QueryRequest request, final Map<String, String> parameters,
+            final Query query) {
         final List<CallbackFuture<String>> componentLookups = new ArrayList<CallbackFuture<String>>();
-        for (final ComponentEntry componentEntry : lookup.getLookupPath()) {
+        for (final ComponentEntry componentEntry : components) {
             componentLookups.add(createComponentLookup(componentEntry, request, parameters, query));
         }
-        final CallbackFutureImpl<QueryResult> ret = new CallbackFutureImpl<QueryResult>();
-        final AtomicReference<CallbackFuture<QueryResult>> finalResultReference = new AtomicReference<CallbackFuture<QueryResult>>(null);
+        final CallbackFutureImpl<R> ret = new CallbackFutureImpl<R>();
+        final AtomicReference<CallbackFuture<R>> finalResultReference = new AtomicReference<CallbackFuture<R>>(null);
         ret.setPollerHandler(new Runnable() {
 
             @Override
@@ -207,7 +240,7 @@ public class Alias implements Backend {
                     for (final CallbackFuture<String> callbackFuture : componentLookups) {
                         callbackFuture.get();
                     }
-                    final CallbackFuture<QueryResult> finalResult = finalResultReference.get();
+                    final CallbackFuture<R> finalResult = finalResultReference.get();
                     assert finalResult != null;
                     finalResult.get();
                 } catch (final InterruptedException e) {
@@ -221,9 +254,6 @@ public class Alias implements Backend {
         final ArrayList<String> componentValues = new ArrayList<String>(componentCount);
         while (componentValues.size() < componentCount) {
             componentValues.add(null);
-        }
-        if (appendPath != null) {
-            componentValues.addAll(appendPath);
         }
         final AtomicInteger returnedResults = new AtomicInteger(0);
         for (int i = 0; i < componentCount; i++) {
@@ -244,9 +274,10 @@ public class Alias implements Backend {
                             throw new RuntimeException("Called handler for component " + index + " twice");
                         }
                         if (returnedResults.incrementAndGet() == componentCount) {
-                            final QueryRequest request2 = new QueryRequest.Builder(request).path(componentValues).build();
-                            final CallbackFuture<QueryResult> finalResult = query.query(request2);
-                            finalResult.registerCallback(new CallbackHandler<QueryResult>() {
+
+                            final CallbackFuture<R> finalResult = processor.processResponses(componentValues);
+
+                            finalResult.registerCallback(new CallbackHandler<R>() {
 
                                 @Override
                                 public void handleException(final Throwable exception) {
@@ -254,7 +285,7 @@ public class Alias implements Backend {
                                 }
 
                                 @Override
-                                public void handleValue(final QueryResult value) {
+                                public void handleValue(final R value) {
                                     ret.setResultValue(value);
                                 }
                             });
@@ -265,5 +296,23 @@ public class Alias implements Backend {
             });
         }
         return ret;
+    }
+
+    private CallbackFuture<QueryResult> processLookup(final LookupComponentEntry lookup, final QueryRequest request,
+            final Map<String, String> parameters, final Query query, final List<String> appendPath) {
+
+        return processComponents(lookup.getLookupPath(), new ProcessAsyncResponse<CallbackFuture<QueryResult>, String>() {
+
+            @Override
+            public CallbackFuture<QueryResult> processResponses(final List<String> components) {
+                if (appendPath != null) {
+                    components.addAll(appendPath);
+                }
+                final QueryRequest request2 = new QueryRequest.Builder(request).path(components).build();
+                final CallbackFuture<QueryResult> finalResult = query.query(request2);
+                return finalResult;
+            }
+
+        }, request, parameters, query);
     }
 }
