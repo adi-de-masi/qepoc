@@ -7,51 +7,49 @@ import java.io.PrintWriter;
 import java.net.Socket;
 
 public class ServerThread implements Runnable {
-    private Socket clientSocket;
+  private final Socket clientSocket;
 
-    public ServerThread(Socket socket) {
-	this.clientSocket = socket;
+  public ServerThread(final Socket socket) {
+    this.clientSocket = socket;
+  }
+
+  public void run() {
+    try {
+      handleInput();
+    } catch (final IOException e) {
+      e.printStackTrace();
     }
+  }
 
-    public void run() {
-	try {
-	    handleInput();
-	} catch (IOException e) {
-	    e.printStackTrace();
-	}
+  private void disconnectClient(final PrintWriter out) {
+    String outputLine;
+    outputLine = "Bye.";
+    out.println(outputLine);
+  }
+
+  private void handleInput() throws IOException {
+    final PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+    final BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+
+    String inputLine, outputLine;
+
+    // initiate conversation with client
+    final Protocol kkp = new Protocol();
+    outputLine = kkp.processInput(null);
+    out.println(outputLine);
+    while ((inputLine = in.readLine()) != null) {
+      outputLine = kkp.processInput(inputLine);
+      out.println(outputLine);
+      if (inputLine.equals("Bye.")) {
+        disconnectClient(out);
+        clientSocket.close();
+        break;
+      } else if (inputLine.equals("Shut.")) {
+        disconnectClient(out);
+        clientSocket.close();
+        System.exit(0);
+      }
     }
-
-    private void handleInput() throws IOException {
-	PrintWriter out = new PrintWriter(clientSocket.getOutputStream(),
-	    true);
-	BufferedReader in = new BufferedReader(new InputStreamReader(
-	    clientSocket.getInputStream()));
-
-	String inputLine, outputLine;
-
-	// initiate conversation with client
-	Protocol kkp = new Protocol();
-	outputLine = kkp.processInput(null);
-	out.println(outputLine);
-	while ((inputLine = in.readLine()) != null) {
-	outputLine = kkp.processInput(inputLine);
-	out.println(outputLine);
-	if (inputLine.equals("Bye.")) {
-	    disconnectClient(out);
-	    clientSocket.close();
-	    break;
-	} else if (inputLine.equals("Shut.")) {
-	    disconnectClient(out);
-	    clientSocket.close();
-	    System.exit(0);
-	}
-	}
-    }
-
-    private void disconnectClient(PrintWriter out) {
-	String outputLine;
-	outputLine = "Bye.";
-	out.println(outputLine);
-    }
+  }
 
 }
