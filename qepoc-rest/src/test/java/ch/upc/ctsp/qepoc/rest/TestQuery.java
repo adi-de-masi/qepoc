@@ -11,6 +11,7 @@ import java.util.concurrent.ExecutionException;
 
 import org.junit.Test;
 
+import ch.upc.ctsp.qepoc.rest.alias.Alias;
 import ch.upc.ctsp.qepoc.rest.impl.QueryImpl;
 import ch.upc.ctsp.qepoc.rest.model.CallbackFuture;
 import ch.upc.ctsp.qepoc.rest.model.PathDescription;
@@ -24,6 +25,23 @@ import ch.upc.ctsp.qepoc.rest.spi.DirectResult;
  * 
  */
 public class TestQuery {
+    @Test
+    public void testAlias() throws InterruptedException, ExecutionException {
+        final QueryImpl query = new QueryImpl();
+        query.registerBackend(PathDescription.createFromString("value/{value}"), new Backend() {
+            @Override
+            public CallbackFuture<QueryResult> query(final QueryRequest request, final Map<String, String> parameters, final Query query) {
+                return new DirectResult(QueryResult.newWithLifeTime(parameters.get("value"), 5));
+            }
+        });
+        final Alias alias = new Alias.Builder().addConstEntry("value").addVariableEntry("value").build();
+        query.registerBackend(PathDescription.createFromString("alias/{value}"), alias);
+        final String value = query.query(QueryRequest.createRequest("value/Hello World")).get().getValue();
+        assertEquals("Hello World", value);
+        final String aliasValue = query.query(QueryRequest.createRequest("alias/Hello Mirror World")).get().getValue();
+        assertEquals("Hello Mirror World", aliasValue);
+    }
+
     @Test
     public void testResolver() throws InterruptedException, ExecutionException {
         final QueryImpl query = new QueryImpl();
