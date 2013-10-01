@@ -1,7 +1,7 @@
 /*
  * (c) 2013 panter llc, Zurich, Switzerland.
  */
-package ch.upc.ctsp.qepoc.rest.alias;
+package ch.upc.ctsp.qepoc.rest.rules;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -17,7 +17,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import lombok.Data;
 import ch.upc.ctsp.qepoc.rest.Query;
 import ch.upc.ctsp.qepoc.rest.model.CallbackFuture;
 import ch.upc.ctsp.qepoc.rest.model.CallbackFuture.CallbackHandler;
@@ -35,7 +34,7 @@ import ch.upc.ctsp.qepoc.rest.spi.DirectResult;
 public class Alias implements Backend {
 
     public static class Builder implements PathBuilder {
-        private final List<ComponentEntry> path = new ArrayList<Alias.ComponentEntry>();
+        private final List<ComponentEntry> path = new ArrayList<ComponentEntry>();
 
         @Override
         public Builder addConstEntry(final String componentName) {
@@ -68,87 +67,8 @@ public class Alias implements Backend {
         }
     }
 
-    public static interface PathBuilder {
-        PathBuilder addConstEntry(final String componentName);
-
-        PathBuilder addVariableEntry(final String variableName);
-
-        PathBuilder createSubpath();
-
-        PathBuilder createPatternEntry(final String pattern);
-    }
-
-    private interface ComponentEntry {
-
-    }
-
-    @Data
-    private static class ConstComponentEntry implements ComponentEntry {
-        private final String componentName;
-
-        @Override
-        public String toString() {
-            return componentName;
-        }
-    }
-
-    @Data
-    private static class LookupComponentEntry implements ComponentEntry {
-        private final List<ComponentEntry> lookupPath;
-
-        @Override
-        public String toString() {
-            final StringBuilder builder = new StringBuilder();
-            builder.append('<');
-            for (final ComponentEntry comp : lookupPath) {
-                if (builder.length() > 0) {
-                    builder.append("/");
-                }
-                builder.append(comp);
-            }
-            builder.append('>');
-            return builder.toString();
-        }
-    }
-
-    @Data
-    private static class PatternComponentEntry implements ComponentEntry {
-        private final MessageFormat        pattern;
-        private final List<ComponentEntry> patternVariables;
-
-        @Override
-        public String toString() {
-            final StringBuffer sb = new StringBuffer();
-            sb.append("[");
-            sb.append(pattern.toPattern());
-            if (!patternVariables.isEmpty()) {
-                sb.append(":");
-                boolean first = true;
-                for (final ComponentEntry variable : patternVariables) {
-                    if (!first) {
-                        sb.append(",");
-                    }
-                    sb.append(variable.toString());
-                    first = false;
-                }
-            }
-            sb.append("]");
-            return sb.toString();
-        }
-    }
-
     private interface ProcessAsyncResponse<R, C> {
         R processResponses(final List<C> components);
-    }
-
-    @Data
-    private static class VariableComponentEntry implements ComponentEntry {
-        private final String variableName;
-
-        @Override
-        public String toString() {
-            return "{" + variableName + "}";
-        }
     }
 
     public static Map<PathDescription, Alias> parseProperties(final Properties props) {
@@ -157,7 +77,7 @@ public class Alias implements Backend {
             final PathDescription targetPath = PathDescription.createFromString(aliasEntry.getKey().toString());
             final String rule = (String) aliasEntry.getValue();
             final Builder builder = new Builder();
-            final LinkedList<PathBuilder> builderStack = new LinkedList<Alias.PathBuilder>();
+            final LinkedList<PathBuilder> builderStack = new LinkedList<PathBuilder>();
             builderStack.add(builder);
             boolean patternMode = false;
             final StringBuilder currenName = new StringBuilder();

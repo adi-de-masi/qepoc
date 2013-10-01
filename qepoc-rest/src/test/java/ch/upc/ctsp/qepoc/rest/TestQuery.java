@@ -11,13 +11,13 @@ import java.util.concurrent.ExecutionException;
 
 import org.junit.Test;
 
-import ch.upc.ctsp.qepoc.rest.alias.Alias;
-import ch.upc.ctsp.qepoc.rest.alias.Alias.Builder;
 import ch.upc.ctsp.qepoc.rest.impl.QueryImpl;
 import ch.upc.ctsp.qepoc.rest.model.CallbackFuture;
 import ch.upc.ctsp.qepoc.rest.model.PathDescription;
 import ch.upc.ctsp.qepoc.rest.model.QueryRequest;
 import ch.upc.ctsp.qepoc.rest.model.QueryResult;
+import ch.upc.ctsp.qepoc.rest.rules.Alias;
+import ch.upc.ctsp.qepoc.rest.rules.Alias.Builder;
 import ch.upc.ctsp.qepoc.rest.spi.Backend;
 import ch.upc.ctsp.qepoc.rest.spi.DirectResult;
 

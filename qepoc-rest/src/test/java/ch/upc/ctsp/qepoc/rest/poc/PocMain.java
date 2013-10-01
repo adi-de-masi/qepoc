@@ -14,12 +14,12 @@ import org.apache.commons.lang.StringUtils;
 
 import ch.upc.ctsp.qepoc.client.Client;
 import ch.upc.ctsp.qepoc.rest.Query;
-import ch.upc.ctsp.qepoc.rest.alias.Alias;
 import ch.upc.ctsp.qepoc.rest.impl.QueryImpl;
 import ch.upc.ctsp.qepoc.rest.model.CallbackFuture;
 import ch.upc.ctsp.qepoc.rest.model.PathDescription;
 import ch.upc.ctsp.qepoc.rest.model.QueryRequest;
 import ch.upc.ctsp.qepoc.rest.model.QueryResult;
+import ch.upc.ctsp.qepoc.rest.rules.Alias;
 import ch.upc.ctsp.qepoc.rest.spi.Backend;
 import ch.upc.ctsp.qepoc.rest.spi.DirectResult;
 
