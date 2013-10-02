@@ -70,19 +70,20 @@ public class Client {
     outer: for (final String arg : args) {
       if (!initializing) {
         out.println(arg);
+        System.out.println("Client: " + arg);
       }
       inner: while ((fromServer = in.readLine()) != null) {
         System.out.println("Server: " + fromServer);
         if (fromServer.equals("Bye.")) {
           break outer;
         } else if (fromServer.equals(Protocol.WELCOME_MESSAGE)) {
+          System.out.println("Client: " + arg);
           out.println(arg);
           initializing = false;
           continue inner;
         }
 
-        System.out.println("Client: " + arg);
-        System.out.println("Server: " + fromServer);
+        // System.out.println("Server: " + fromServer);
         result.append(fromServer);
         result.append("\n");
         break inner;
