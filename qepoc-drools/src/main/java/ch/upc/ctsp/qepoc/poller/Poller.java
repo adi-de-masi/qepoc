@@ -1,5 +1,7 @@
 package ch.upc.ctsp.qepoc.poller;
 
+import java.io.IOException;
+
 import ch.upc.ctsp.qepoc.model.QueryEngineRequest;
 
 /**
@@ -27,7 +29,8 @@ public interface Poller {
      * @return The polled result as String.
      * 
      *         TODO: Add all kinds of exceptions that may occur.
+     * @throws IOException 
      */
-    public String execute(QueryEngineRequest request);
+    public String execute(QueryEngineRequest request) throws IOException;
 
 }

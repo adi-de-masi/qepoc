@@ -1,6 +1,8 @@
 package ch.upc.ctsp.qepoc;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
@@ -16,11 +18,11 @@ public class MainUpstreamIfcRuleTest {
 	request.setName("mainUpstreamIfc");
 
 	ruleEngine.execute(request);
-	
-	assertEquals("/snmp/{cmtsIp}/1.3.6.2.1.2.3.4.{cmId}", request.getQuery());
+
+	assertEquals("/snmp/{cmtsIp}/1.3.6.2.1.2.3.4.{cmId}", request.getQueryBlueprint());
 	assertNotNull(request.getRequiredParameters());
-	assertTrue(request.getRequiredParameters().containsKey("cmtsIp"));
-	assertTrue(request.getRequiredParameters().containsKey("cmId"));
+	assertTrue(request.getRequiredParameters().contains("{cmtsIp}"));
+	assertTrue(request.getRequiredParameters().contains("{cmId}"));
     }
 
 }
