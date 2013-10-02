@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<rule-set path="/" xmlns="http://www.upc-cablecom.ch/query-engine/config">
+  <rule-set path="modem/{mac}">
+    <attribute name="ip" reference="/mock/modem/{mac}/ip" />
+    <attribute name="scopename" reference="/mock/scopes/{ip}" scope="private" />
+    <reference name="scope" reference="/scope/{scopename}" />
+    <reference name="cmtsname" reference="scope/cmts"/>
+  </rule-set>
+
+  <rule-set path="scope/{scopename}">
+    <attribute name="cmtsname" reference="/mock/scopes/{scopename}/cmts" scope="private" />
+    <reference name="cmts" reference="/cmts/{cmtsname}" />
+  </rule-set>
+
+  <rule-set path="cmts/{cmtsname}">
+    <attribute name="type" reference="/db/cmts/{cmtsname}/type" />
+    <attribute name="mainIfc" condition="" />
+    <conditional condition="{type}==casa32">
+      <attribute name="mainIfc" />
+      <attribute name="modemCount" />
+    </conditional>
+    <conditional condition="{type}==arris4k">
+      <attribute name="mainIfc" condition="" />
+      <attribute name="modemCount" />
+      <rule-set path="interface/{ifc}">
+        <attribute reference="{mainIfc}" />
+      </rule-set>
+    </conditional>
+  </rule-set>
+</rule-set>
