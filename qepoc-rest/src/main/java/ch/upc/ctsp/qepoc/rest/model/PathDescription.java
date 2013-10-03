@@ -22,6 +22,14 @@ public class PathDescription {
         private final List<PathComp> components = new ArrayList<PathComp>();
         private boolean              isPrefix   = false;
 
+        public Builder() {
+        }
+
+        public Builder(final PathDescription origin) {
+            isPrefix = origin.isPrefix;
+            components.addAll(Arrays.asList(origin.getComponents()));
+        }
+
         public Builder appendString(final String path) {
             isPrefix = path.endsWith("/");
             for (final String compDescription : path.split("/")) {
@@ -57,6 +65,11 @@ public class PathDescription {
     public static class VariablePathComp implements PathComp {
         private final String variableName;
     }
+
+    /**
+     * 
+     */
+    private static final VariablePathComp ANONYMOUS_VARIABLE_COMP = new VariablePathComp("");
 
     public static PathDescription createFromString(final String description) {
         return new Builder().appendString(description).build();
@@ -97,6 +110,40 @@ public class PathDescription {
         final ArrayList<PathComp> comps = new ArrayList<PathComp>(Arrays.asList(components));
         comps.addAll(appendComps);
         return new PathDescription(false, comps.toArray(new PathComp[comps.size()]));
+
+    }
+
+    /**
+     * Read all Variable names from path
+     * 
+     * @return Array with all Variable names
+     */
+    public String[] getVariableNames() {
+        final ArrayList<String> variableNames = new ArrayList<String>();
+        for (final PathComp component : components) {
+            if (component instanceof VariablePathComp) {
+                variableNames.add(((VariablePathComp) component).getVariableName());
+            }
+        }
+        return variableNames.toArray(new String[variableNames.size()]);
+    }
+
+    /**
+     * Generate a normal version of this {@link PathDescription}. Means all variable names will be set to empty string.
+     * 
+     * @return normalized {@link PathDescription}
+     */
+    public PathDescription normalize() {
+        final PathComp[] comps = new PathComp[components.length];
+        for (int i = 0; i < comps.length; i++) {
+            final PathComp pathComp = components[i];
+            if (pathComp instanceof FixedPathComp) {
+                comps[i] = pathComp;
+            } else {
+                comps[i] = ANONYMOUS_VARIABLE_COMP;
+            }
+        }
+        return new PathDescription(isPrefix, comps);
     }
 
     @Override

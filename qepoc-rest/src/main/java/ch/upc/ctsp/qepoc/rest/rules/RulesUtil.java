@@ -75,7 +75,7 @@ public class RulesUtil {
             return new DirectResult<QueryResult>(new QueryResult(parameters.get(((VariableComponentEntry) componentEntry).getVariableName())));
         }
         if (componentEntry instanceof LookupComponentEntry) {
-            return processLookup((LookupComponentEntry) componentEntry, context);
+            return processLookup((LookupComponentEntry) componentEntry, context, false);
         }
         if (componentEntry instanceof PatternComponentEntry) {
             final PatternComponentEntry patternEntry = (PatternComponentEntry) componentEntry;
@@ -160,7 +160,7 @@ public class RulesUtil {
         return processCallbacks(componentLookups, processor);
     }
 
-    public static CallbackFuture<QueryResult> processLookup(final LookupComponentEntry lookup, final QueryContext context) {
+    public static CallbackFuture<QueryResult> processLookup(final LookupComponentEntry lookup, final QueryContext context, final boolean appendTail) {
 
         return processComponents(lookup.getLookupPath(), new ProcessAsyncResponse<CallbackFuture<QueryResult>, QueryResult>() {
 
@@ -169,7 +169,7 @@ public class RulesUtil {
                 final Date maxCreationDate = findOldestAge(components);
                 final List<String> requestPath = collectValues(components);
                 final List<String> path = context.getRequest().getPath();
-                if (context.getPathLength() != path.size()) {
+                if (appendTail && context.getPathLength() != path.size()) {
                     requestPath.addAll(path.subList(context.getPathLength(), path.size()));
                 }
                 final QueryRequest executingRequest = new QueryRequest.Builder(context.getRequest()).path(requestPath).build();

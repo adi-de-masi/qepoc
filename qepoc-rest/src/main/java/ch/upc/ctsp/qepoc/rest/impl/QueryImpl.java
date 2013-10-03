@@ -17,6 +17,7 @@ import ch.upc.ctsp.qepoc.rest.model.QueryResult;
 import ch.upc.ctsp.qepoc.rest.spi.Backend;
 import ch.upc.ctsp.qepoc.rest.spi.DirectResult;
 import ch.upc.ctsp.qepoc.rest.spi.QueryContext;
+import ch.upc.ctsp.qepoc.rest.spi.QueryContext.Builder;
 
 /*
  * (c) 2013 panter llc, Zurich, Switzerland.
@@ -48,6 +49,7 @@ public class QueryImpl implements Query {
     public CallbackFuture<QueryResult> query(final QueryRequest request) {
         try {
             final String key = createKeyFromPath(request.getPath());
+            System.out.println("Query for " + key);
             synchronized (oldResults) {
                 final QueryResult oldResult = oldResults.get(key);
                 if (oldResult != null && oldResult.getCreationDate().after(request.getAllowedSince())) {
@@ -83,6 +85,10 @@ public class QueryImpl implements Query {
     }
 
     public void registerBackend(final PathDescription path, final Backend backend) {
+        registerBackend(path, new BackendWrapper(path.getVariableNames(), backend));
+    }
+
+    public void registerBackend(final PathDescription path, final BackendWrapper backend) {
         AbstractRegistryNode currentNode = rootNode;
 
         final PathComp[] components = path.getComponents();
@@ -126,9 +132,8 @@ public class QueryImpl implements Query {
 
     private CallbackFuture<QueryResult> callBackend(final BackendNode backendNode, final QueryRequest request, final List<String> parameters,
             final int pathLength) {
-        final QueryContext context = new QueryContext.Builder().request(request).parameterNames(backendNode.getVariableEntries())
-                .parameterValues(parameters).pathLength(pathLength).query(this).build();
-        final CallbackFuture<QueryResult> result = backendNode.getBackend().query(context);
+        final Builder contextBuilder = new QueryContext.Builder().request(request).parameterValues(parameters).pathLength(pathLength).query(this);
+        final CallbackFuture<QueryResult> result = backendNode.getWrapper().call(contextBuilder);
         result.registerCallback(new CallbackHandler<QueryResult>() {
 
             @Override
@@ -154,7 +159,7 @@ public class QueryImpl implements Query {
         return key;
     }
 
-    private AbstractRegistryNode createNextNode(final PathComp nextPathComp, final AbstractRegistryNode currentNode, final Backend backend,
+    private AbstractRegistryNode createNextNode(final PathComp nextPathComp, final AbstractRegistryNode currentNode, final BackendWrapper backend,
             final List<String> variableNames) {
         final AbstractRegistryNode nextNode;
         if (nextPathComp != null) {
@@ -166,7 +171,7 @@ public class QueryImpl implements Query {
                 throw new RuntimeException("Unsupported path comp " + nextPathComp);
             }
         } else {
-            nextNode = new BackendNode(currentNode, variableNames.toArray(new String[variableNames.size()]), backend);
+            nextNode = new BackendNode(currentNode, backend);
         }
         return nextNode;
     }

@@ -22,7 +22,11 @@ import lombok.Data;
 @XmlType(
         namespace = "http://www.upc-cablecom.ch/query-engine/config")
 public abstract class RuleCollection {
+    @XmlElement(
+            name = "attribute", namespace = "http://www.upc-cablecom.ch/query-engine/config")
     private List<Attribute> attribute = new ArrayList<Attribute>();
+    @XmlElement(
+            name = "reference", namespace = "http://www.upc-cablecom.ch/query-engine/config")
     private List<Reference> reference = new ArrayList<Reference>();
     @XmlElement(
             name = "rule-set", namespace = "http://www.upc-cablecom.ch/query-engine/config")

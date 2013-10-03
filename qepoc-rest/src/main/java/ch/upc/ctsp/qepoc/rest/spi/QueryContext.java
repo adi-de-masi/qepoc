@@ -10,11 +10,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
 import ch.upc.ctsp.qepoc.rest.Query;
 import ch.upc.ctsp.qepoc.rest.model.QueryRequest;
 
-@Data
+@Getter
+@EqualsAndHashCode
+@ToString
 public class QueryContext {
     public static class Builder {
         private QueryRequest request;
@@ -74,17 +78,17 @@ public class QueryContext {
 
     }
 
-    private final QueryRequest request;
-    private final List<String> parameterNames;
-    private final List<String> parameterValues;
-    private final Query        executingQuery;
-    private final int          pathLength;
+    private final QueryRequest            request;
+    private final List<String>            parameterNames;
+    private final List<String>            parameterValues;
+    private final Query                   executingQuery;
+    private final int                     pathLength;
+    private transient Map<String, String> parameterMap;
 
     private QueryContext(final QueryRequest request, final List<String> parameterNames, final List<String> parameterValues,
             final Query executingQuery, final int pathLength) {
-        assert parameterNames != null;
         assert parameterValues != null;
-        assert parameterNames.size() == parameterValues.size();
+        assert parameterNames == null || parameterNames.size() == parameterValues.size();
         this.request = request;
         this.parameterNames = parameterNames;
         this.parameterValues = parameterValues;
@@ -93,12 +97,17 @@ public class QueryContext {
     }
 
     public Map<String, String> getParameterMap() {
-        final LinkedHashMap<String, String> ret = new LinkedHashMap<String, String>();
-        final Iterator<String> valueIterator = parameterValues.iterator();
-        final Iterator<String> nameIterator = parameterNames.iterator();
-        while (valueIterator.hasNext() && nameIterator.hasNext()) {
-            ret.put(nameIterator.next(), valueIterator.next());
+        if (parameterMap == null) {
+            synchronized (this) {
+                final LinkedHashMap<String, String> ret = new LinkedHashMap<String, String>();
+                final Iterator<String> valueIterator = parameterValues.iterator();
+                final Iterator<String> nameIterator = parameterNames.iterator();
+                while (valueIterator.hasNext() && nameIterator.hasNext()) {
+                    ret.put(nameIterator.next(), valueIterator.next());
+                }
+                parameterMap = ret;
+            }
         }
-        return ret;
+        return parameterMap;
     }
 }

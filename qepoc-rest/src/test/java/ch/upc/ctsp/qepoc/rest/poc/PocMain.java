@@ -6,8 +6,6 @@ package ch.upc.ctsp.qepoc.rest.poc;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map.Entry;
-import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -16,12 +14,12 @@ import java.util.concurrent.ExecutionException;
 import org.apache.commons.lang.StringUtils;
 
 import ch.upc.ctsp.qepoc.client.Client;
-import ch.upc.ctsp.qepoc.rest.impl.QueryImpl;
+import ch.upc.ctsp.qepoc.rest.Query;
+import ch.upc.ctsp.qepoc.rest.impl.QueryBuilder;
 import ch.upc.ctsp.qepoc.rest.model.CallbackFuture;
 import ch.upc.ctsp.qepoc.rest.model.PathDescription;
 import ch.upc.ctsp.qepoc.rest.model.QueryRequest;
 import ch.upc.ctsp.qepoc.rest.model.QueryResult;
-import ch.upc.ctsp.qepoc.rest.rules.Alias;
 import ch.upc.ctsp.qepoc.rest.spi.Backend;
 import ch.upc.ctsp.qepoc.rest.spi.CallbackFutureImpl;
 import ch.upc.ctsp.qepoc.rest.spi.DirectResult;
@@ -104,20 +102,17 @@ public class PocMain {
     }
 
     public static void main(final String args[]) throws IOException, InterruptedException, ExecutionException {
-        final QueryImpl query = new QueryImpl();
-        query.registerBackend(PathDescription.createFromString("mock"), new BulkMockBackend());
+        final QueryBuilder queryBuilder = new QueryBuilder();
+        queryBuilder.appendNativeBackend(PathDescription.createFromString("mock"), new BulkMockBackend());
+        queryBuilder.appendRuleSet(ClassLoader.getSystemResourceAsStream("rules.xml"));
 
-        final Properties aliases = new Properties();
-        aliases.load(ClassLoader.getSystemResourceAsStream("rules.properties"));
-        for (final Entry<PathDescription, Alias> aliasEntry : Alias.parseProperties(aliases).entrySet()) {
-            query.registerBackend(aliasEntry.getKey(), aliasEntry.getValue());
-        }
+        final Query query = queryBuilder.build();
 
         System.out.println();
         System.out.println("-------------");
         System.out.println("Configuration");
         System.out.println("-------------");
-        System.out.println(query.dump());
+        // System.out.println(query.dump());
 
         System.out.println();
         System.out.println("---------------");

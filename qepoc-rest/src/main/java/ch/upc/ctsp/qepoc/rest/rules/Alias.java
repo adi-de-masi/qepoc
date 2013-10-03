@@ -3,11 +3,8 @@
  */
 package ch.upc.ctsp.qepoc.rest.rules;
 
-import java.text.MessageFormat;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
@@ -24,37 +21,16 @@ import ch.upc.ctsp.qepoc.rest.spi.QueryContext;
  */
 public class Alias implements Backend {
 
-    public static class Builder implements PathBuilder {
-        private final List<ComponentEntry> path = new ArrayList<ComponentEntry>();
+    public static class Builder extends DefaultPathBuilder<Builder> {
+        private boolean appendTail = false;
 
-        @Override
-        public Builder addConstEntry(final String componentName) {
-            path.add(new ConstComponentEntry(componentName));
-            return this;
-        }
-
-        @Override
-        public Builder addVariableEntry(final String variableName) {
-            path.add(new VariableComponentEntry(variableName));
+        public Builder appendTail() {
+            appendTail = true;
             return this;
         }
 
         public Alias build() {
-            return new Alias(new LookupComponentEntry(path));
-        }
-
-        @Override
-        public PathBuilder createPatternEntry(final String pattern) {
-            final Builder builder = new Builder();
-            path.add(new PatternComponentEntry(new MessageFormat(pattern), builder.path));
-            return builder;
-        }
-
-        @Override
-        public PathBuilder createSubpath() {
-            final Builder builder = new Builder();
-            path.add(new LookupComponentEntry(builder.path));
-            return builder;
+            return new Alias(new LookupComponentEntry(path), appendTail);
         }
     }
 
@@ -139,14 +115,16 @@ public class Alias implements Backend {
     }
 
     private final LookupComponentEntry lookup;
+    private final boolean              appendTail;
 
-    private Alias(final LookupComponentEntry lookup) {
+    private Alias(final LookupComponentEntry lookup, final boolean appendTail) {
         this.lookup = lookup;
+        this.appendTail = appendTail;
     }
 
     @Override
     public CallbackFuture<QueryResult> query(final QueryContext context) {
-        return RulesUtil.processLookup(lookup, context);
+        return RulesUtil.processLookup(lookup, context, appendTail);
     }
 
     @Override

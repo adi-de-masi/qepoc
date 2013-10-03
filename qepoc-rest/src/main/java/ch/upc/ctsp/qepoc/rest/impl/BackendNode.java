@@ -8,7 +8,6 @@ import java.util.Arrays;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import ch.upc.ctsp.qepoc.rest.spi.Backend;
 
 /**
  * TODO: add type comment.
@@ -18,22 +17,19 @@ import ch.upc.ctsp.qepoc.rest.spi.Backend;
 @EqualsAndHashCode(
         callSuper = true)
 public class BackendNode extends AbstractRegistryNode {
-    private final String[] variableEntries;
+    private final BackendWrapper wrapper;
 
-    private final Backend  backend;
-
-    public BackendNode(final AbstractRegistryNode parentNode, final String[] variableEntries, final Backend backend) {
+    public BackendNode(final AbstractRegistryNode parentNode, final BackendWrapper wrapper) {
         super(parentNode);
-        this.variableEntries = variableEntries;
-        this.backend = backend;
+        this.wrapper = wrapper;
     }
 
     @Override
     protected void dumpValue(final Appendable out, final int level) throws IOException {
         intent(out, level);
-        out.append(Arrays.toString(variableEntries));
+        out.append(Arrays.toString(wrapper.getVariableEntries()));
         out.append(": ");
-        out.append(String.valueOf(backend));
+        out.append(String.valueOf(wrapper.getBackend()));
         out.append("\n");
     }
 
