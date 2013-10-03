@@ -6,7 +6,6 @@ package ch.upc.ctsp.qepoc.rest;
 import static org.junit.Assert.assertEquals;
 
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import org.junit.Test;
@@ -20,6 +19,7 @@ import ch.upc.ctsp.qepoc.rest.rules.Alias;
 import ch.upc.ctsp.qepoc.rest.rules.Alias.Builder;
 import ch.upc.ctsp.qepoc.rest.spi.Backend;
 import ch.upc.ctsp.qepoc.rest.spi.DirectResult;
+import ch.upc.ctsp.qepoc.rest.spi.QueryContext;
 
 /**
  * TODO: add type comment.
@@ -30,9 +30,10 @@ public class TestQuery {
     public void testAlias() throws InterruptedException, ExecutionException {
         final QueryImpl query = new QueryImpl();
         query.registerBackend(PathDescription.createFromString("value/{value}"), new Backend() {
+
             @Override
-            public CallbackFuture<QueryResult> query(final QueryRequest request, final Map<String, String> parameters, final Query query) {
-                return new DirectResult(QueryResult.newWithLifeTime(parameters.get("value"), 5));
+            public CallbackFuture<QueryResult> query(final QueryContext context) {
+                return new DirectResult(QueryResult.newWithLifeTime(context.getParameterMap().get("value"), 5));
             }
         });
         query.registerBackend(PathDescription.createFromString("alias1/{value}"), new Alias.Builder().addConstEntry("value")
@@ -57,16 +58,17 @@ public class TestQuery {
         query.registerBackend(PathDescription.createFromString("value/{value}"), new Backend() {
 
             @Override
-            public CallbackFuture<QueryResult> query(final QueryRequest request, final Map<String, String> parameters, final Query query) {
-                return new DirectResult(QueryResult.newWithLifeTime(parameters.get("value"), 5));
+            public CallbackFuture<QueryResult> query(final QueryContext context) {
+                return new DirectResult(QueryResult.newWithLifeTime(context.getParameterMap().get("value"), 5));
             }
         });
         query.registerBackend(PathDescription.createFromString("alias/"), new Backend() {
 
             @Override
-            public CallbackFuture<QueryResult> query(final QueryRequest request, final Map<String, String> parameters, final Query query) {
+            public CallbackFuture<QueryResult> query(final QueryContext context) {
+                final QueryRequest request = context.getRequest();
                 final List<String> pathComps = request.getPath();
-                final List<String> remainingComps = pathComps.subList(Integer.parseInt(parameters.get("match-length")), pathComps.size());
+                final List<String> remainingComps = pathComps.subList(context.getPathLength(), pathComps.size());
                 final QueryRequest nextRequest = new QueryRequest.Builder(request).path("value").appendPathComps(remainingComps).build();
                 return query.query(nextRequest);
             }

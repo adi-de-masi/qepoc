@@ -6,16 +6,14 @@ package ch.upc.ctsp.qepoc.rest.rules;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 import lombok.Data;
-import ch.upc.ctsp.qepoc.rest.Query;
 import ch.upc.ctsp.qepoc.rest.model.CallbackFuture;
-import ch.upc.ctsp.qepoc.rest.model.QueryRequest;
 import ch.upc.ctsp.qepoc.rest.model.QueryResult;
 import ch.upc.ctsp.qepoc.rest.rules.RulesUtil.ProcessAsyncResponse;
 import ch.upc.ctsp.qepoc.rest.spi.Backend;
 import ch.upc.ctsp.qepoc.rest.spi.DirectResult;
+import ch.upc.ctsp.qepoc.rest.spi.QueryContext;
 
 /**
  * TODO: add type comment.
@@ -23,8 +21,8 @@ import ch.upc.ctsp.qepoc.rest.spi.DirectResult;
  */
 public class Switch implements Backend {
     public static class ConditionBuilder {
-        public ConditionBuilder(){
-            
+        public ConditionBuilder() {
+
         }
     }
 
@@ -48,21 +46,26 @@ public class Switch implements Backend {
     private final List<ConditionalEntry> conditionalEntries = new ArrayList<ConditionalEntry>();
     private Backend                      defaultValue;
 
+    /*
+     * (non-Javadoc)
+     * 
+     * @see ch.upc.ctsp.qepoc.rest.spi.Backend#query(ch.upc.ctsp.qepoc.rest.spi.QueryContext)
+     */
     @Override
-    public CallbackFuture<QueryResult> query(final QueryRequest request, final Map<String, String> parameters, final Query executingQuery) {
+    public CallbackFuture<QueryResult> query(final QueryContext context) {
         final List<CallbackFuture<Boolean>> conditionResults = new ArrayList<CallbackFuture<Boolean>>();
         for (final ConditionalEntry conditionalEntry : conditionalEntries) {
             final List<CompareCondition> condition = conditionalEntry.getCondition();
-            conditionResults.add(resolveCondition(condition, request, parameters, executingQuery));
+            conditionResults.add(resolveCondition(condition, context));
         }
         return RulesUtil.processCallbacks(conditionResults, new ProcessAsyncResponse<CallbackFuture<QueryResult>, Boolean>() {
             @Override
             public CallbackFuture<QueryResult> processResponses(final List<Boolean> components) {
                 final int matchingIndex = components.indexOf(Boolean.TRUE);
                 if (matchingIndex >= 0) {
-                    return conditionalEntries.get(matchingIndex).getValue().query(request, parameters, executingQuery);
+                    return conditionalEntries.get(matchingIndex).getValue().query(context);
                 } else if (defaultValue != null) {
-                    return defaultValue.query(request, parameters, executingQuery);
+                    return defaultValue.query(context);
                 } else {
                     return new DirectResult<QueryResult>(new QueryResult(null));
                 }
@@ -77,8 +80,7 @@ public class Switch implements Backend {
      * @param query
      * @return
      */
-    private CallbackFuture<Boolean> resolveCondition(final List<CompareCondition> conditions, final QueryRequest request,
-            final Map<String, String> parameters, final Query query) {
+    private CallbackFuture<Boolean> resolveCondition(final List<CompareCondition> conditions, final QueryContext context) {
         if (conditions.isEmpty()) {
             return new DirectResult<Boolean>(Boolean.TRUE);
         }
@@ -97,8 +99,8 @@ public class Switch implements Backend {
                 if (conditions.size() == 1) {
                     return new DirectResult<Boolean>(Boolean.TRUE);
                 }
-                return resolveCondition(conditions.subList(1, conditions.size()), request, parameters, query);
+                return resolveCondition(conditions.subList(1, conditions.size()), context);
             }
-        }, request, parameters, query);
+        }, context);
     }
 }

@@ -6,7 +6,6 @@ package ch.upc.ctsp.qepoc.rest.poc;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
@@ -17,7 +16,6 @@ import java.util.concurrent.ExecutionException;
 import org.apache.commons.lang.StringUtils;
 
 import ch.upc.ctsp.qepoc.client.Client;
-import ch.upc.ctsp.qepoc.rest.Query;
 import ch.upc.ctsp.qepoc.rest.impl.QueryImpl;
 import ch.upc.ctsp.qepoc.rest.model.CallbackFuture;
 import ch.upc.ctsp.qepoc.rest.model.PathDescription;
@@ -27,6 +25,7 @@ import ch.upc.ctsp.qepoc.rest.rules.Alias;
 import ch.upc.ctsp.qepoc.rest.spi.Backend;
 import ch.upc.ctsp.qepoc.rest.spi.CallbackFutureImpl;
 import ch.upc.ctsp.qepoc.rest.spi.DirectResult;
+import ch.upc.ctsp.qepoc.rest.spi.QueryContext;
 
 /**
  * TODO: add type comment.
@@ -38,9 +37,10 @@ public class PocMain {
         private final ConcurrentMap<String, CallbackFutureImpl<QueryResult>> pendingRequests = new ConcurrentHashMap<String, CallbackFutureImpl<QueryResult>>();
 
         @Override
-        public CallbackFuture<QueryResult> query(final QueryRequest request, final Map<String, String> parameters, final Query executingQuery) {
+        public CallbackFuture<QueryResult> query(final QueryContext context) {
+            final QueryRequest request = context.getRequest();
             final List<String> path = request.getPath();
-            final List<String> remainingPath = path.subList(Integer.parseInt(parameters.get("match-length")), path.size());
+            final List<String> remainingPath = path.subList(context.getPathLength(), path.size());
             final String pathKey = "/" + StringUtils.join(remainingPath, "/");
 
             final CallbackFutureImpl<QueryResult> ret = new CallbackFutureImpl<QueryResult>();
@@ -86,9 +86,10 @@ public class PocMain {
         private int queryNr = 0;
 
         @Override
-        public CallbackFuture<QueryResult> query(final QueryRequest request, final Map<String, String> parameters, final Query executingQuery) {
+        public CallbackFuture<QueryResult> query(final QueryContext context) {
+            final QueryRequest request = context.getRequest();
             final List<String> path = request.getPath();
-            final List<String> remainingPath = path.subList(Integer.parseInt(parameters.get("match-length")), path.size());
+            final List<String> remainingPath = path.subList(context.getPathLength(), path.size());
             try {
                 final String requestCommand = "/" + StringUtils.join(remainingPath, '/');
                 System.out.println("-------------------------------------------------------------------------------------------------");

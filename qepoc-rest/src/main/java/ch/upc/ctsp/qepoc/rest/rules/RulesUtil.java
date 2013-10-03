@@ -13,13 +13,13 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import ch.upc.ctsp.qepoc.rest.Query;
 import ch.upc.ctsp.qepoc.rest.model.CallbackFuture;
 import ch.upc.ctsp.qepoc.rest.model.CallbackFuture.CallbackHandler;
 import ch.upc.ctsp.qepoc.rest.model.QueryRequest;
 import ch.upc.ctsp.qepoc.rest.model.QueryResult;
 import ch.upc.ctsp.qepoc.rest.spi.CallbackFutureImpl;
 import ch.upc.ctsp.qepoc.rest.spi.DirectResult;
+import ch.upc.ctsp.qepoc.rest.spi.QueryContext;
 
 /**
  * TODO: add type comment.
@@ -66,16 +66,16 @@ public class RulesUtil {
      * @param query
      * @return
      */
-    public static CallbackFuture<QueryResult> createComponentLookup(final ComponentEntry componentEntry, final QueryRequest request,
-            final Map<String, String> parameters, final Query query) {
+    public static CallbackFuture<QueryResult> createComponentLookup(final ComponentEntry componentEntry, final QueryContext context) {
         if (componentEntry instanceof ConstComponentEntry) {
             return new DirectResult<QueryResult>(new QueryResult(((ConstComponentEntry) componentEntry).getComponentName()));
         }
         if (componentEntry instanceof VariableComponentEntry) {
+            final Map<String, String> parameters = context.getParameterMap();
             return new DirectResult<QueryResult>(new QueryResult(parameters.get(((VariableComponentEntry) componentEntry).getVariableName())));
         }
         if (componentEntry instanceof LookupComponentEntry) {
-            return processLookup((LookupComponentEntry) componentEntry, request, parameters, query, null);
+            return processLookup((LookupComponentEntry) componentEntry, context);
         }
         if (componentEntry instanceof PatternComponentEntry) {
             final PatternComponentEntry patternEntry = (PatternComponentEntry) componentEntry;
@@ -87,7 +87,7 @@ public class RulesUtil {
                     return new DirectResult<QueryResult>(new QueryResult(patternEntry.pattern.format(collectValuesAsArray(components))));
                 }
 
-            }, request, parameters, query);
+            }, context);
         }
         throw new IllegalArgumentException("Component-Type " + componentEntry.getClass() + " not supported");
     }
@@ -152,17 +152,15 @@ public class RulesUtil {
     }
 
     public static <R> CallbackFuture<R> processComponents(final List<ComponentEntry> components,
-            final ProcessAsyncResponse<CallbackFuture<R>, QueryResult> processor, final QueryRequest request, final Map<String, String> parameters,
-            final Query query) {
+            final ProcessAsyncResponse<CallbackFuture<R>, QueryResult> processor, final QueryContext context) {
         final List<CallbackFuture<QueryResult>> componentLookups = new ArrayList<CallbackFuture<QueryResult>>();
         for (final ComponentEntry componentEntry : components) {
-            componentLookups.add(createComponentLookup(componentEntry, request, parameters, query));
+            componentLookups.add(createComponentLookup(componentEntry, context));
         }
         return processCallbacks(componentLookups, processor);
     }
 
-    public static CallbackFuture<QueryResult> processLookup(final LookupComponentEntry lookup, final QueryRequest request,
-            final Map<String, String> parameters, final Query query, final List<String> appendPath) {
+    public static CallbackFuture<QueryResult> processLookup(final LookupComponentEntry lookup, final QueryContext context) {
 
         return processComponents(lookup.getLookupPath(), new ProcessAsyncResponse<CallbackFuture<QueryResult>, QueryResult>() {
 
@@ -170,14 +168,16 @@ public class RulesUtil {
             public CallbackFuture<QueryResult> processResponses(final List<QueryResult> components) {
                 final Date maxCreationDate = findOldestAge(components);
                 final List<String> requestPath = collectValues(components);
-                if (appendPath != null) {
-                    requestPath.addAll(appendPath);
+                final List<String> path = context.getRequest().getPath();
+                if (context.getPathLength() != path.size()) {
+                    requestPath.addAll(path.subList(context.getPathLength(), path.size()));
                 }
-                final QueryRequest executingRequest = new QueryRequest.Builder(request).path(requestPath).build();
-                return withMaxCreationDate(query.query(executingRequest), maxCreationDate);
+                final QueryRequest executingRequest = new QueryRequest.Builder(context.getRequest()).path(requestPath).build();
+
+                return withMaxCreationDate(context.getExecutingQuery().query(executingRequest), maxCreationDate);
             }
 
-        }, request, parameters, query);
+        }, context);
     }
 
     /**

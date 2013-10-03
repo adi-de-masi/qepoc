@@ -12,12 +12,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 
-import ch.upc.ctsp.qepoc.rest.Query;
 import ch.upc.ctsp.qepoc.rest.model.CallbackFuture;
 import ch.upc.ctsp.qepoc.rest.model.PathDescription;
-import ch.upc.ctsp.qepoc.rest.model.QueryRequest;
 import ch.upc.ctsp.qepoc.rest.model.QueryResult;
 import ch.upc.ctsp.qepoc.rest.spi.Backend;
+import ch.upc.ctsp.qepoc.rest.spi.QueryContext;
 
 /**
  * TODO: add type comment.
@@ -146,16 +145,8 @@ public class Alias implements Backend {
     }
 
     @Override
-    public CallbackFuture<QueryResult> query(final QueryRequest request, final Map<String, String> parameters, final Query query) {
-        final int matchLength = Integer.parseInt(parameters.get("match-length"));
-        final List<String> requestPath = request.getPath();
-        final List<String> appendPath;
-        if (matchLength != requestPath.size()) {
-            appendPath = requestPath.subList(matchLength, requestPath.size());
-        } else {
-            appendPath = null;
-        }
-        return RulesUtil.processLookup(lookup, request, parameters, query, appendPath);
+    public CallbackFuture<QueryResult> query(final QueryContext context) {
+        return RulesUtil.processLookup(lookup, context);
     }
 
     @Override

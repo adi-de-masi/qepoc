@@ -16,6 +16,7 @@ import ch.upc.ctsp.qepoc.rest.model.QueryRequest;
 import ch.upc.ctsp.qepoc.rest.model.QueryResult;
 import ch.upc.ctsp.qepoc.rest.spi.Backend;
 import ch.upc.ctsp.qepoc.rest.spi.DirectResult;
+import ch.upc.ctsp.qepoc.rest.spi.QueryContext;
 
 /*
  * (c) 2013 panter llc, Zurich, Switzerland.
@@ -125,8 +126,9 @@ public class QueryImpl implements Query {
 
     private CallbackFuture<QueryResult> callBackend(final BackendNode backendNode, final QueryRequest request, final List<String> parameters,
             final int pathLength) {
-        final Map<String, String> variables = createParameterMap(backendNode, parameters, pathLength);
-        final CallbackFuture<QueryResult> result = backendNode.getBackend().query(request, variables, this);
+        final QueryContext context = new QueryContext.Builder().request(request).parameterNames(backendNode.getVariableEntries())
+                .parameterValues(parameters).pathLength(pathLength).query(this).build();
+        final CallbackFuture<QueryResult> result = backendNode.getBackend().query(context);
         result.registerCallback(new CallbackHandler<QueryResult>() {
 
             @Override
@@ -168,18 +170,4 @@ public class QueryImpl implements Query {
         }
         return nextNode;
     }
-
-    private Map<String, String> createParameterMap(final BackendNode backendNode, final List<String> parameters, final int pathLength) {
-        final String[] variableNames = backendNode.getVariableEntries();
-        assert variableNames.length == parameters.size();
-        final Map<String, String> variables = new HashMap<String, String>();
-        variables.put("match-length", Integer.toString(pathLength));
-        for (int i = 0; i < variableNames.length; i++) {
-            final String name = variableNames[i];
-            final String value = parameters.get(i);
-            variables.put(name, value);
-        }
-        return variables;
-    }
-
 }
