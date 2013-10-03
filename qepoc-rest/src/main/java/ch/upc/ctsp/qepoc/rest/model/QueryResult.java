@@ -31,4 +31,11 @@ public class QueryResult {
         creationDate = new Date();
         validUntil = null;
     }
+
+    public QueryResult withMaxCreationDate(final Date maxCreationDate) {
+        if (maxCreationDate == null || maxCreationDate.after(creationDate)) {
+            return this;
+        }
+        return new QueryResult(value, maxCreationDate, validUntil);
+    }
 }
