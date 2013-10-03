@@ -11,7 +11,7 @@
     <attribute name="cmtsname" reference="modem/{mac}/scope/cmtsname" />
     <attribute name="cmId" reference="mock/cmts/{cmtsname}/modem/{mac}/cmId" />
     <attribute name="cmtsip" reference="modem/{mac}/cmts/ip" />
-    <attribute name="mainUpstreamIfc" reference="mock/snmp/{cmtsip}/1.3.6.2.1.2.3.4.{cmId}"/>
+    <attribute name="mainUpstreamIfc" reference="mock/snmp/{cmtsip}/1.3.6.2.1.2.3.4.{cmId}" />
   </rule-set>
 
   <rule-set path="scope/{scopename}">
@@ -20,6 +20,6 @@
   </rule-set>
 
   <rule-set path="cmts/{cmtsname}">
-    <attribute name="ip" reference="mock/cmts/{cmtsname}/ip" />    
+    <attribute name="ip" reference="mock/cmts/{cmtsname}/ip" />
   </rule-set>
 </rule-set>

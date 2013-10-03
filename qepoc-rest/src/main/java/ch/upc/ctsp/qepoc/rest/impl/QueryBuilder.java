@@ -16,10 +16,10 @@ import java.util.regex.Pattern;
 import javax.xml.bind.JAXB;
 
 import ch.upc.ctsp.qepoc.rest.Query;
-import ch.upc.ctsp.qepoc.rest.config.Attribute;
-import ch.upc.ctsp.qepoc.rest.config.Conditional;
-import ch.upc.ctsp.qepoc.rest.config.Reference;
 import ch.upc.ctsp.qepoc.rest.config.RuleCollection;
+import ch.upc.ctsp.qepoc.rest.config.RuleCollection.Attribute;
+import ch.upc.ctsp.qepoc.rest.config.RuleCollection.Conditional;
+import ch.upc.ctsp.qepoc.rest.config.RuleCollection.Reference;
 import ch.upc.ctsp.qepoc.rest.config.RuleSet;
 import ch.upc.ctsp.qepoc.rest.model.PathDescription;
 import ch.upc.ctsp.qepoc.rest.model.PathDescription.FixedPathComp;
@@ -153,14 +153,12 @@ public class QueryBuilder {
      * @param conditions
      */
     private void fillBuilders(final RuleCollection rules, final PathDescription path, final List<String> conditions) {
-        if (rules instanceof RuleSet) {
-            for (final Conditional conditional : ((RuleSet) rules).getConditional()) {
-                final ArrayList<String> newConditions = new ArrayList<String>(conditions);
-                newConditions.add(conditional.getCondition());
-                fillBuilders(conditional, path, newConditions);
-            }
+        for (final Conditional conditional : rules.getConditional()) {
+            final ArrayList<String> newConditions = new ArrayList<String>(conditions);
+            newConditions.add(conditional.getCondition());
+            fillBuilders(conditional, path, newConditions);
         }
-        for (final RuleSet ruleSet : rules.getRuleSets()) {
+        for (final RuleSet ruleSet : rules.getRuleSet()) {
             final PathDescription ruleSetPath = new PathDescription.Builder(path).appendString(ruleSet.getPath()).build();
             fillBuilders(ruleSet, ruleSetPath, conditions);
         }

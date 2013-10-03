@@ -53,23 +53,14 @@
         <version>1.5</version>
         <executions>
           <execution>
-            <id>schemagen</id>
+            <id>xjc</id>
             <goals>
-              <goal>schemagen</goal>
+              <goal>xjc</goal>
             </goals>
           </execution>
         </executions>
         <configuration>
-          <transformSchemas>
-            <transformSchema>
-              <uri>http://www.upc-cablecom.ch/query-engine/config</uri>
-              <toPrefix>c</toPrefix>
-              <toFile>config.xsd</toFile>
-            </transformSchema>
-          </transformSchemas>
-          <includes>
-            <include>ch/upc/ctsp/qepoc/rest/config/*.java</include>
-          </includes>
+          <packageName>ch.upc.ctsp.qepoc.rest.config</packageName>
         </configuration>
       </plugin>
     </plugins>

@@ -37,7 +37,7 @@ public class TestQuery {
         });
         query.registerBackend(PathDescription.createFromString("alias1/{value}"), new Alias.Builder().addConstEntry("value")
                 .addVariableEntry("value").build());
-        query.registerBackend(PathDescription.createFromString("alias2"), new Alias.Builder().addConstEntry("value").build());
+        query.registerBackend(PathDescription.createFromString("alias2"), new Alias.Builder().addConstEntry("value").appendTail().build());
         final Alias.Builder alias3Builder = new Alias.Builder().addConstEntry("value");
         alias3Builder.createPatternEntry("{0} World").addVariableEntry("value");
         query.registerBackend(PathDescription.createFromString("alias3/{value}"), alias3Builder.build());

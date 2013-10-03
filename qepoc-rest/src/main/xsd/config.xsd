@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema targetNamespace="http://www.upc-cablecom.ch/query-engine/config" elementFormDefault="qualified"
+  xmlns="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://www.upc-cablecom.ch/query-engine/config">
+
+  <complexType name="ruleSet">
+    <complexContent>
+      <extension base="tns:ruleCollection">
+        <attribute name="path" type="string"></attribute>
+      </extension>
+    </complexContent>
+  </complexType>
+
+  <complexType name="ruleCollection">
+    <complexContent>
+      <extension base="tns:commentable">
+        <sequence>
+          <element name="rule-set" type="tns:ruleSet" maxOccurs="unbounded" minOccurs="0"></element>
+          <element name="attribute" maxOccurs="unbounded" minOccurs="0">
+            <complexType>
+              <attribute name="name" type="string"></attribute>
+              <attribute name="reference" type="string"></attribute>
+            </complexType>
+          </element>
+          <element name="reference" maxOccurs="unbounded" minOccurs="0">
+            <complexType>
+              <attribute name="name" type="string" />
+              <attribute name="reference" type="string" />
+            </complexType>
+          </element>
+          <element name="conditional" maxOccurs="unbounded" minOccurs="0">
+            <complexType>
+              <complexContent>
+                <extension base="tns:ruleCollection">
+                  <attribute name="condition" type="string"></attribute>
+                </extension>
+              </complexContent>
+            </complexType>
+          </element>
+        </sequence>
+      </extension>
+    </complexContent>
+  </complexType>
+
+  <complexType name="commentable">
+    <sequence>
+      <element name="comment" type="string" maxOccurs="1" minOccurs="0"></element>
+    </sequence>
+  </complexType>
+  <element name="rule-set" type="tns:ruleSet"></element>
+</schema>

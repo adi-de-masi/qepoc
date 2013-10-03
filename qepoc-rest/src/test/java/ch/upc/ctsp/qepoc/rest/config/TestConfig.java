@@ -8,9 +8,11 @@ import java.io.File;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
-import javax.xml.bind.Unmarshaller;
 
 import org.junit.Test;
+
+import ch.upc.ctsp.qepoc.rest.config.RuleCollection.Reference;
+import ch.upc.ctsp.qepoc.rest.impl.QueryBuilder;
 
 /**
  * TODO: add type comment.
@@ -23,15 +25,27 @@ public class TestConfig {
         final Marshaller marshaller = jaxbContext.createMarshaller();
 
         final RuleSet rootSet = new RuleSet();
-        rootSet.getRuleSets().add(new RuleSet());
+        rootSet.setPath("hello");
+        final RuleSet innerSet = new RuleSet();
+        innerSet.setPath("modem/{mac}");
+        final RuleCollection.Attribute attr = new RuleCollection.Attribute();
+        attr.setName("hello");
+        attr.setReference("world");
+        innerSet.getAttribute().add(attr);
+        final Reference reference = new Reference();
+        reference.setName("refname");
+        reference.setReference("ref");
+        innerSet.getReference().add(reference);
+        rootSet.getRuleSet().add(innerSet);
 
-        marshaller.marshal(rootSet, new File("target/out.xml"));
+        marshaller.marshal(new ObjectFactory().createRuleSet(rootSet), new File("target/out.xml"));
     }
 
     @Test
     public void testLoadOfConfig() throws JAXBException {
-        final JAXBContext jaxbContext = JAXBContext.newInstance(RuleSet.class);
-        final Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
-        System.out.println(unmarshaller.unmarshal(ClassLoader.getSystemResourceAsStream("rules.xml")));
+
+        final QueryBuilder builder = new QueryBuilder();
+        builder.appendRuleSet(ClassLoader.getSystemResourceAsStream("rules.xml"));
+        builder.build();
     }
 }
