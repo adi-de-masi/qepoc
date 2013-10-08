@@ -6,6 +6,7 @@
     <complexContent>
       <extension base="tns:ruleCollection">
         <attribute name="path" type="string"></attribute>
+        <attribute name="iterable-reference" type="string"></attribute>
       </extension>
     </complexContent>
   </complexType>
@@ -15,26 +16,11 @@
       <extension base="tns:commentable">
         <sequence>
           <element name="rule-set" type="tns:ruleSet" maxOccurs="unbounded" minOccurs="0"></element>
-          <element name="attribute" maxOccurs="unbounded" minOccurs="0">
-            <complexType>
-              <attribute name="name" type="string"></attribute>
-              <attribute name="reference" type="string"></attribute>
-            </complexType>
+          <element name="attribute" maxOccurs="unbounded" minOccurs="0" type="tns:attributeComplexType">
           </element>
-          <element name="reference" maxOccurs="unbounded" minOccurs="0">
-            <complexType>
-              <attribute name="name" type="string" />
-              <attribute name="reference" type="string" />
-            </complexType>
+          <element name="reference" maxOccurs="unbounded" minOccurs="0" type="tns:referenceComplexType">
           </element>
-          <element name="conditional" maxOccurs="unbounded" minOccurs="0">
-            <complexType>
-              <complexContent>
-                <extension base="tns:ruleCollection">
-                  <attribute name="condition" type="string"></attribute>
-                </extension>
-              </complexContent>
-            </complexType>
+          <element name="conditional" maxOccurs="unbounded" minOccurs="0" type="tns:conditionalComplexType">
           </element>
         </sequence>
       </extension>
@@ -47,4 +33,27 @@
     </sequence>
   </complexType>
   <element name="rule-set" type="tns:ruleSet"></element>
+  <complexType name="attributeComplexType">
+    <complexContent>
+      <extension base="tns:commentable">
+        <attribute name="name" type="string"></attribute>
+        <attribute name="reference" type="string"></attribute>
+      </extension>
+    </complexContent>
+  </complexType>
+  <complexType name="referenceComplexType">
+    <complexContent>
+      <extension base="tns:commentable">
+        <attribute name="name" type="string"></attribute>
+        <attribute name="reference" type="string"></attribute>
+      </extension>
+    </complexContent>
+  </complexType>
+  <complexType name="conditionalComplexType">
+    <complexContent>
+      <extension base="tns:ruleCollection">
+        <attribute name="condition" type="string"></attribute>
+      </extension>
+    </complexContent>
+  </complexType>
 </schema>

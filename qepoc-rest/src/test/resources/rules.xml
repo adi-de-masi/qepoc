@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <rule-set xmlns="http://www.upc-cablecom.ch/query-engine/config">
-  <rule-set path="modem/{mac}">
+  <rule-set path="modem/{mac}" iterable-reference="mock/modemlist">
     <attribute name="ip" reference="mock/modem/{mac}/ip" />
     <attribute name="scopename" reference="mock/scopes/{ip}" scope="private" />
 

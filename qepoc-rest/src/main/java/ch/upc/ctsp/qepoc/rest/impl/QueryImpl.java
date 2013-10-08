@@ -1,9 +1,15 @@
 package ch.upc.ctsp.qepoc.rest.impl;
 
+import java.io.UnsupportedEncodingException;
+import java.lang.ref.WeakReference;
+import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.commons.collections.map.LRUMap;
 
 import ch.upc.ctsp.qepoc.rest.Query;
 import ch.upc.ctsp.qepoc.rest.model.CallbackFuture;
@@ -15,6 +21,7 @@ import ch.upc.ctsp.qepoc.rest.model.PathDescription.VariablePathComp;
 import ch.upc.ctsp.qepoc.rest.model.QueryRequest;
 import ch.upc.ctsp.qepoc.rest.model.QueryResult;
 import ch.upc.ctsp.qepoc.rest.spi.Backend;
+import ch.upc.ctsp.qepoc.rest.spi.CallbackFutureImpl;
 import ch.upc.ctsp.qepoc.rest.spi.DirectResult;
 import ch.upc.ctsp.qepoc.rest.spi.QueryContext;
 import ch.upc.ctsp.qepoc.rest.spi.QueryContext.Builder;
@@ -28,8 +35,9 @@ import ch.upc.ctsp.qepoc.rest.spi.QueryContext.Builder;
  * 
  */
 public class QueryImpl implements Query {
-    private final FixedListNode            rootNode   = new FixedListNode(null);
-    private final Map<String, QueryResult> oldResults = new HashMap<String, QueryResult>();
+    private final FixedListNode                                           rootNode     = new FixedListNode(null);
+    private final Map<String, QueryResult>                                oldResults   = new LRUMap();
+    private final Map<String, WeakReference<CallbackFuture<QueryResult>>> pendingQuery = new HashMap<String, WeakReference<CallbackFuture<QueryResult>>>();
 
     /**
      * @return
@@ -49,13 +57,22 @@ public class QueryImpl implements Query {
     public CallbackFuture<QueryResult> query(final QueryRequest request) {
         try {
             final String key = createKeyFromPath(request.getPath());
-            System.out.println("Query for " + key);
+            final CallbackFutureImpl<QueryResult> ret = new CallbackFutureImpl<QueryResult>();
             synchronized (oldResults) {
                 final QueryResult oldResult = oldResults.get(key);
                 if (oldResult != null && oldResult.getCreationDate().after(request.getAllowedSince())) {
+                    System.out.println("Cached result for " + key + ": " + oldResult.getValue());
                     return new DirectResult<QueryResult>(oldResult);
                 }
+                final WeakReference<CallbackFuture<QueryResult>> pendingResultReference = pendingQuery.get(key);
+                if (pendingResultReference != null) {
+                    final CallbackFuture<QueryResult> pendingResult = pendingResultReference.get();
+                    System.out.println("Pending Query for " + key);
+                    return pendingResult;
+                }
+                pendingQuery.put(key, new WeakReference<CallbackFuture<QueryResult>>(ret));
             }
+            System.out.println("Query for " + key);
             AbstractRegistryNode currentNode = rootNode;
             final List<String> path = request.getPath();
             final List<String> parameters = new ArrayList<String>();
@@ -78,7 +95,13 @@ public class QueryImpl implements Query {
                 }
                 currentNode = nextNode;
             }
-            return callBackend((BackendNode) currentNode, request, parameters, pathLength);
+            if (currentNode instanceof BackendNode) {
+                ret.takeResultFrom(callBackend((BackendNode) currentNode, request, parameters, pathLength));
+            } else if (currentNode instanceof FixedListNode) {
+                ret.takeResultFrom(new DirectResult<QueryResult>(
+                        new QueryResult(createNodeList(((FixedListNode) currentNode).getSubNodes().keySet()))));
+            }
+            return ret;
         } catch (final Throwable t) {
             throw new RuntimeException("Exception in Path " + request.getPath(), t);
         }
@@ -134,29 +157,17 @@ public class QueryImpl implements Query {
             final int pathLength) {
         final Builder contextBuilder = new QueryContext.Builder().request(request).parameterValues(parameters).pathLength(pathLength).query(this);
         final CallbackFuture<QueryResult> result = backendNode.getWrapper().call(contextBuilder);
-        result.registerCallback(new CallbackHandler<QueryResult>() {
-
-            @Override
-            public void handleException(final Throwable exception) {
-            }
-
-            @Override
-            public void handleValue(final QueryResult value) {
-                final String key = createKeyFromPath(request.getPath());
-                synchronized (oldResults) {
-                    final QueryResult cachedResult = oldResults.get(key);
-                    if (cachedResult == null || cachedResult.getCreationDate().before(value.getCreationDate())) {
-                        oldResults.put(key, value);
-                    }
-                }
-            }
-        });
+        handleCache(request, result);
         return result;
     }
 
     private String createKeyFromPath(final List<String> path) {
-        final String key = path.toString();
-        return key;
+        final StringBuffer sb = new StringBuffer();
+        for (final String part : path) {
+            sb.append("/");
+            sb.append(encode(part));
+        }
+        return sb.toString();
     }
 
     private AbstractRegistryNode createNextNode(final PathComp nextPathComp, final AbstractRegistryNode currentNode, final BackendWrapper backend,
@@ -174,5 +185,55 @@ public class QueryImpl implements Query {
             nextNode = new BackendNode(currentNode, backend);
         }
         return nextNode;
+    }
+
+    /**
+     * @param keySet
+     * @return
+     */
+    private String createNodeList(final Collection<String> parts) {
+        final StringBuffer ret = new StringBuffer();
+        for (final String string : parts) {
+            if (ret.length() > 0) {
+                ret.append(", ");
+            }
+            ret.append(encode(string));
+        }
+        return ret.toString();
+    }
+
+    private String encode(final String part) {
+        String encodedString;
+        try {
+            encodedString = URLEncoder.encode(part, "utf-8");
+        } catch (final UnsupportedEncodingException e) {
+            throw new RuntimeException("This VM doesnt support utf-8", e);
+        }
+        return encodedString;
+    }
+
+    private void handleCache(final QueryRequest request, final CallbackFuture<QueryResult> result) {
+        final String path = createKeyFromPath(request.getPath());
+        result.registerCallback(new CallbackHandler<QueryResult>() {
+
+            @Override
+            public void handleException(final Throwable exception) {
+                synchronized (oldResults) {
+                    pendingQuery.remove(path);
+                }
+            }
+
+            @Override
+            public void handleValue(final QueryResult value) {
+                synchronized (oldResults) {
+                    final QueryResult cachedResult = oldResults.get(path);
+                    if (cachedResult == null || cachedResult.getCreationDate().before(value.getCreationDate())) {
+                        oldResults.put(path, value);
+                    }
+                    pendingQuery.remove(path);
+                }
+                System.out.println(path + " -> " + value.getValue());
+            }
+        });
     }
 }

@@ -7,6 +7,7 @@ import java.io.IOException;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import ch.upc.ctsp.qepoc.rest.spi.Backend;
 
 /**
  * TODO: add type comment.
@@ -17,6 +18,7 @@ import lombok.EqualsAndHashCode;
         callSuper = true)
 public class VariableNode extends AbstractRegistryNode {
     private AbstractRegistryNode subNode;
+    private BackendWrapper       iterable;
 
     public VariableNode(final AbstractRegistryNode parentNode) {
         super(parentNode);
@@ -30,7 +32,13 @@ public class VariableNode extends AbstractRegistryNode {
     @Override
     protected void dumpValue(final Appendable out, final int level) throws IOException {
         intent(out, level);
-        out.append("*");
+        out.append("* ");
+        if (iterable != null) {
+            final Backend backend = iterable.getBackend();
+            if (backend != null) {
+                out.append(backend.toString());
+            }
+        }
         out.append("\n");
         subNode.dumpValue(out, level + 1);
     }

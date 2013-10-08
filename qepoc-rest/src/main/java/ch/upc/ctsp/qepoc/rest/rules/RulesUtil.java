@@ -31,35 +31,6 @@ public class RulesUtil {
     }
 
     /**
-     * TODO: add type comment.
-     * 
-     * @param <R>
-     */
-    private static class DelegationHandler<R> implements CallbackHandler<R> {
-        /**
-         * 
-         */
-        private final CallbackFutureImpl<R> ret;
-
-        /**
-         * @param ret
-         */
-        private DelegationHandler(final CallbackFutureImpl<R> ret) {
-            this.ret = ret;
-        }
-
-        @Override
-        public void handleException(final Throwable exception) {
-            ret.setResultException(exception);
-        }
-
-        @Override
-        public void handleValue(final R value) {
-            ret.setResultValue(value);
-        }
-    }
-
-    /**
      * @param componentEntry
      * @param request
      * @param parameters
@@ -140,8 +111,7 @@ public class RulesUtil {
                         if (returnedResults.incrementAndGet() == componentCount) {
 
                             final CallbackFuture<R> finalResult = processor.processResponses(componentValues);
-
-                            finalResult.registerCallback(new DelegationHandler<R>(ret));
+                            ret.takeResultFrom(finalResult);
                             finalResultReference.set(finalResult);
                         }
                     }

@@ -8,6 +8,7 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 
 import lombok.Data;
@@ -28,6 +29,11 @@ public class PathDescription {
         public Builder(final PathDescription origin) {
             isPrefix = origin.isPrefix;
             components.addAll(Arrays.asList(origin.getComponents()));
+        }
+
+        public Builder appendComponent(final PathComp component) {
+            components.add(component);
+            return this;
         }
 
         public Builder appendString(final String path) {
@@ -114,6 +120,13 @@ public class PathDescription {
     }
 
     /**
+     * @param i
+     */
+    public PathDescription getHeadPath(final int headLength) {
+        return new PathDescription(isPrefix, Arrays.copyOf(components, headLength));
+    }
+
+    /**
      * Read all Variable names from path
      * 
      * @return Array with all Variable names
@@ -141,6 +154,23 @@ public class PathDescription {
                 comps[i] = pathComp;
             } else {
                 comps[i] = ANONYMOUS_VARIABLE_COMP;
+            }
+        }
+        return new PathDescription(isPrefix, comps);
+    }
+
+    /**
+     * 
+     */
+    public PathDescription replaceParameterNames(final String[] parameterNames) {
+        final Iterator<String> parameterIter = Arrays.asList(parameterNames).iterator();
+        final PathComp[] comps = new PathComp[components.length];
+        for (int i = 0; i < comps.length; i++) {
+            final PathComp pathComp = components[i];
+            if (pathComp instanceof FixedPathComp) {
+                comps[i] = pathComp;
+            } else {
+                comps[i] = new VariablePathComp(parameterIter.next());
             }
         }
         return new PathDescription(isPrefix, comps);

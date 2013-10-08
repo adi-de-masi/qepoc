@@ -10,6 +10,7 @@ import java.util.List;
 
 import lombok.Data;
 import ch.upc.ctsp.qepoc.rest.impl.BackendWrapper;
+import ch.upc.ctsp.qepoc.rest.impl.VariableResolver;
 import ch.upc.ctsp.qepoc.rest.model.CallbackFuture;
 import ch.upc.ctsp.qepoc.rest.model.PathDescription;
 import ch.upc.ctsp.qepoc.rest.model.QueryResult;
@@ -32,14 +33,16 @@ public class Switch implements Backend {
             return caseBuilder;
         }
 
-        /* (non-Javadoc)
+        /*
+         * (non-Javadoc)
+         * 
          * @see ch.upc.ctsp.qepoc.rest.rules.BackendBuilder#build()
          */
         @Override
-        public BackendWrapper build() {
+        public BackendWrapper build(final VariableResolver variableResolver) {
             final List<ConditionalEntry> conditionalEntries = new ArrayList<Switch.ConditionalEntry>();
             for (final CaseBuilder singleCase : cases) {
-                final ConditionalEntry conditionalEntry = singleCase.build();
+                final ConditionalEntry conditionalEntry = singleCase.build(variableResolver);
                 conditionalEntries.add(conditionalEntry);
 
             }
@@ -55,6 +58,7 @@ public class Switch implements Backend {
         private final List<ConditionBuilder> conditionBuilders = new ArrayList<Switch.ConditionBuilder>();
         private Backend                      backend;
         private String[]                     variableNames;
+        private BackendBuilder               backendBuilder;
 
         public ConditionBuilder appendCondition() {
             final ConditionBuilder ret = new ConditionBuilder();
@@ -67,17 +71,28 @@ public class Switch implements Backend {
             return this;
         }
 
+        public CaseBuilder backendBuilder(final BackendBuilder backendBuilder) {
+            this.backendBuilder = backendBuilder;
+            return this;
+        }
+
         public CaseBuilder path(final PathDescription path) {
             variableNames = path.getVariableNames();
             return this;
         }
 
-        private ConditionalEntry build() {
+        private ConditionalEntry build(final VariableResolver variableResolver) {
             final ArrayList<CompareCondition> conditions = new ArrayList<CompareCondition>();
             for (final ConditionBuilder conditionBuilder : conditionBuilders) {
                 conditions.add(conditionBuilder.build());
             }
-            return new ConditionalEntry(Collections.unmodifiableList(conditions), new BackendWrapper(variableNames, backend));
+            BackendWrapper backendWrapper;
+            if (backend == null) {
+                backendWrapper = backendBuilder.build(variableResolver);
+            } else {
+                backendWrapper = new BackendWrapper(variableNames, backend);
+            }
+            return new ConditionalEntry(Collections.unmodifiableList(conditions), backendWrapper);
         }
     }
 
