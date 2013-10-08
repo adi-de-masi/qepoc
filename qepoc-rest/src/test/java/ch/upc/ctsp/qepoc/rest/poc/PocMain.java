@@ -5,6 +5,7 @@ package ch.upc.ctsp.qepoc.rest.poc;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -60,10 +61,11 @@ public class PocMain {
                         System.out.println("-------------------------------------------------------------------------------------------------");
                         System.out.println("Querying (" + (++queryNr) + "): " + requests);
                         System.out.println("-------------------------------------------------------------------------------------------------");
+                        final Date queryTime = new Date();
                         final String result = Client.query(requests.toArray(new String[requests.size()]));
                         final String[] answers = result.split("\n");
                         for (int i = 0; i < results.size(); i++) {
-                            results.get(i).setResultValue(new QueryResult(answers[i]));
+                            results.get(i).setResultValue(new QueryResult(answers[i], queryTime, null));
                         }
                     } catch (final IOException e) {
                         for (final CallbackFutureImpl<QueryResult> result : results) {
@@ -90,11 +92,12 @@ public class PocMain {
             final List<String> remainingPath = path.subList(context.getPathLength(), path.size());
             try {
                 final String requestCommand = "/" + StringUtils.join(remainingPath, '/');
+                final Date queryTime = new Date();
                 System.out.println("-------------------------------------------------------------------------------------------------");
                 System.out.println("Querying (" + (++queryNr) + "): " + requestCommand);
                 System.out.println("-------------------------------------------------------------------------------------------------");
                 final String result = Client.query(requestCommand);
-                return new DirectResult<QueryResult>(new QueryResult(result.trim()));
+                return new DirectResult<QueryResult>(new QueryResult(result.trim(), queryTime, null));
             } catch (final Throwable e) {
                 throw new RuntimeException("Cannot call " + remainingPath, e);
             }
@@ -114,22 +117,30 @@ public class PocMain {
         System.out.println("-------------");
         // System.out.println(query.dump());
 
-        System.out.println();
-        System.out.println("---------------");
-        System.out.println("Anouncing Query");
-        System.out.println("---------------");
-        final CallbackFuture<QueryResult> response = query.query(QueryRequest.createRequest("modem/00AB123456/mainUpstreamIfc"));
+        for (int i = 0; i < 3; i++) {
+            final long startTime = System.currentTimeMillis();
+            System.out.println();
+            System.out.println("---------------");
+            System.out.println("Anouncing Query");
+            System.out.println("---------------");
+            final CallbackFuture<QueryResult> response = query.query(QueryRequest.createRequest("modem/00AB123456/mainUpstreamIfc"));
 
-        System.out.println();
-        System.out.println("--------------");
-        System.out.println("Taking Result");
-        System.out.println("--------------");
-        final QueryResult queryResult = response.get();
+            System.out.println();
+            System.out.println("--------------");
+            System.out.println("Taking Result");
+            System.out.println("--------------");
+            final QueryResult queryResult = response.get();
 
-        System.out.println();
-        System.out.println("------");
-        System.out.println("Result");
-        System.out.println("------");
-        System.out.println(queryResult.getValue());
+            final long endTime = System.currentTimeMillis();
+            System.out.println();
+            System.out.println("------");
+            System.out.println("Result");
+            System.out.println("------");
+            System.out.println("Result: " + queryResult.getValue());
+            System.out.println("Query-Time: " + (endTime - startTime) + " ms");
+            System.out.println("Data-Age: " + (endTime - queryResult.getCreationDate().getTime()) + " ms");
+            Thread.sleep(1000);
+        }
+
     }
 }

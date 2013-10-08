@@ -1,5 +1,7 @@
 package ch.upc.ctsp.qepoc.rest.impl;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -15,6 +17,7 @@ import ch.upc.ctsp.qepoc.rest.model.PathDescription.VariablePathComp;
 import ch.upc.ctsp.qepoc.rest.model.QueryRequest;
 import ch.upc.ctsp.qepoc.rest.model.QueryResult;
 import ch.upc.ctsp.qepoc.rest.spi.Backend;
+import ch.upc.ctsp.qepoc.rest.spi.CallbackFutureImpl;
 import ch.upc.ctsp.qepoc.rest.spi.DirectResult;
 import ch.upc.ctsp.qepoc.rest.spi.QueryContext;
 import ch.upc.ctsp.qepoc.rest.spi.QueryContext.Builder;
@@ -28,8 +31,9 @@ import ch.upc.ctsp.qepoc.rest.spi.QueryContext.Builder;
  * 
  */
 public class QueryImpl implements Query {
-    private final FixedListNode            rootNode   = new FixedListNode(null);
-    private final Map<String, QueryResult> oldResults = new HashMap<String, QueryResult>();
+    private final FixedListNode                            rootNode     = new FixedListNode(null);
+    private final Map<String, QueryResult>                 oldResults   = new HashMap<String, QueryResult>();
+    private final Map<String, CallbackFuture<QueryResult>> pendingQuery = new HashMap<String, CallbackFuture<QueryResult>>();
 
     /**
      * @return
@@ -49,13 +53,21 @@ public class QueryImpl implements Query {
     public CallbackFuture<QueryResult> query(final QueryRequest request) {
         try {
             final String key = createKeyFromPath(request.getPath());
-            System.out.println("Query for " + key);
+            final CallbackFutureImpl<QueryResult> ret = new CallbackFutureImpl<QueryResult>();
             synchronized (oldResults) {
                 final QueryResult oldResult = oldResults.get(key);
                 if (oldResult != null && oldResult.getCreationDate().after(request.getAllowedSince())) {
+                    System.out.println("Cached result for " + key + ": " + oldResult.getValue());
                     return new DirectResult<QueryResult>(oldResult);
                 }
+                final CallbackFuture<QueryResult> pendingResult = pendingQuery.get(key);
+                if (pendingResult != null) {
+                    System.out.println("Pending Query for " + key);
+                    return pendingResult;
+                }
+                pendingQuery.put(key, ret);
             }
+            System.out.println("Query for " + key);
             AbstractRegistryNode currentNode = rootNode;
             final List<String> path = request.getPath();
             final List<String> parameters = new ArrayList<String>();
@@ -78,7 +90,8 @@ public class QueryImpl implements Query {
                 }
                 currentNode = nextNode;
             }
-            return callBackend((BackendNode) currentNode, request, parameters, pathLength);
+            ret.takeResultFrom(callBackend((BackendNode) currentNode, request, parameters, pathLength));
+            return ret;
         } catch (final Throwable t) {
             throw new RuntimeException("Exception in Path " + request.getPath(), t);
         }
@@ -138,6 +151,10 @@ public class QueryImpl implements Query {
 
             @Override
             public void handleException(final Throwable exception) {
+                final String key = createKeyFromPath(request.getPath());
+                synchronized (oldResults) {
+                    pendingQuery.remove(key);
+                }
             }
 
             @Override
@@ -148,6 +165,7 @@ public class QueryImpl implements Query {
                     if (cachedResult == null || cachedResult.getCreationDate().before(value.getCreationDate())) {
                         oldResults.put(key, value);
                     }
+                    pendingQuery.remove(key);
                 }
             }
         });
@@ -155,8 +173,16 @@ public class QueryImpl implements Query {
     }
 
     private String createKeyFromPath(final List<String> path) {
-        final String key = path.toString();
-        return key;
+        final StringBuffer sb = new StringBuffer();
+        for (final String part : path) {
+            sb.append("/");
+            try {
+                sb.append(URLEncoder.encode(part, "utf-8"));
+            } catch (final UnsupportedEncodingException e) {
+                throw new RuntimeException("This VM doesnt support utf-8", e);
+            }
+        }
+        return sb.toString();
     }
 
     private AbstractRegistryNode createNextNode(final PathComp nextPathComp, final AbstractRegistryNode currentNode, final BackendWrapper backend,
