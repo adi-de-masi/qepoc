@@ -11,11 +11,13 @@ import java.util.concurrent.ExecutionException;
 import org.junit.Test;
 
 import ch.upc.ctsp.qepoc.rest.impl.QueryImpl;
+import ch.upc.ctsp.qepoc.rest.impl.VariableResolver;
 import ch.upc.ctsp.qepoc.rest.model.CallbackFuture;
 import ch.upc.ctsp.qepoc.rest.model.PathDescription;
 import ch.upc.ctsp.qepoc.rest.model.QueryRequest;
 import ch.upc.ctsp.qepoc.rest.model.QueryResult;
 import ch.upc.ctsp.qepoc.rest.rules.Alias;
+import ch.upc.ctsp.qepoc.rest.rules.PathBuilder;
 import ch.upc.ctsp.qepoc.rest.spi.Backend;
 import ch.upc.ctsp.qepoc.rest.spi.DirectResult;
 import ch.upc.ctsp.qepoc.rest.spi.QueryContext;
@@ -35,12 +37,19 @@ public class TestQuery {
                 return new DirectResult(QueryResult.newWithLifeTime(context.getParameterMap().get("value"), 5));
             }
         });
+        final VariableResolver emptyResolver = new VariableResolver() {
+
+            @Override
+            public void appendPath(final PathBuilder builder, final String variableName, final String[] parameterNames) {
+            }
+        };
         query.registerBackend(PathDescription.createFromString("alias1/{value}"), new Alias.Builder().addConstEntry("value")
-                .addVariableEntry("value").build());
-        query.registerBackend(PathDescription.createFromString("alias2"), new Alias.Builder().addConstEntry("value").appendTail().build());
+                .addVariableEntry("value").build(emptyResolver));
+        query.registerBackend(PathDescription.createFromString("alias2"), new Alias.Builder().addConstEntry("value").appendTail()
+                .build(emptyResolver));
         final Alias.Builder alias3Builder = new Alias.Builder().addConstEntry("value");
         alias3Builder.createPatternEntry("{0} World").addVariableEntry("value");
-        query.registerBackend(PathDescription.createFromString("alias3/{value}"), alias3Builder.build());
+        query.registerBackend(PathDescription.createFromString("alias3/{value}"), alias3Builder.build(emptyResolver));
         final String value = query.query(QueryRequest.createRequest("value/Hello World")).get().getValue();
         assertEquals("Hello World", value);
         final String aliasValue = query.query(QueryRequest.createRequest("alias1/Hello Mirror World")).get().getValue();

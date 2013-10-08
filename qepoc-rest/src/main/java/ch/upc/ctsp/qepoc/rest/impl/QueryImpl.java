@@ -232,6 +232,7 @@ public class QueryImpl implements Query {
                     }
                     pendingQuery.remove(path);
                 }
+                System.out.println(path + " -> " + value.getValue());
             }
         });
     }

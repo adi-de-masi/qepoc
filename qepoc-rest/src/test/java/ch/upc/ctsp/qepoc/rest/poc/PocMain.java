@@ -117,7 +117,7 @@ public class PocMain {
         System.out.println("-------------");
         // System.out.println(query.dump());
 
-        for (int i = 0; i < 0; i++) {
+        for (int i = 0; i < 1; i++) {
             final long startTime = System.currentTimeMillis();
             System.out.println();
             System.out.println("---------------");
