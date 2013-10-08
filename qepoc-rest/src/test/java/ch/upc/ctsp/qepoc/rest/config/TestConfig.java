@@ -11,7 +11,6 @@ import javax.xml.bind.Marshaller;
 
 import org.junit.Test;
 
-import ch.upc.ctsp.qepoc.rest.config.RuleCollection.Reference;
 import ch.upc.ctsp.qepoc.rest.impl.QueryBuilder;
 
 /**
@@ -28,11 +27,11 @@ public class TestConfig {
         rootSet.setPath("hello");
         final RuleSet innerSet = new RuleSet();
         innerSet.setPath("modem/{mac}");
-        final RuleCollection.Attribute attr = new RuleCollection.Attribute();
+        final AttributeComplexType attr = new AttributeComplexType();
         attr.setName("hello");
         attr.setReference("world");
         innerSet.getAttribute().add(attr);
-        final Reference reference = new Reference();
+        final ReferenceComplexType reference = new ReferenceComplexType();
         reference.setName("refname");
         reference.setReference("ref");
         innerSet.getReference().add(reference);

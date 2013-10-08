@@ -30,6 +30,11 @@ public class PathDescription {
             components.addAll(Arrays.asList(origin.getComponents()));
         }
 
+        public Builder appendComponent(final PathComp component) {
+            components.add(component);
+            return this;
+        }
+
         public Builder appendString(final String path) {
             isPrefix = path.endsWith("/");
             for (final String compDescription : path.split("/")) {

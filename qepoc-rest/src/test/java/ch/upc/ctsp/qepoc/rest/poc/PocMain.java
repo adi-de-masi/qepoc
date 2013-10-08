@@ -117,7 +117,7 @@ public class PocMain {
         System.out.println("-------------");
         // System.out.println(query.dump());
 
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 0; i++) {
             final long startTime = System.currentTimeMillis();
             System.out.println();
             System.out.println("---------------");
@@ -141,6 +141,7 @@ public class PocMain {
             System.out.println("Data-Age: " + (endTime - queryResult.getCreationDate().getTime()) + " ms");
             Thread.sleep(1000);
         }
-
+        System.out.println(query.query(QueryRequest.createRequest("modem/00AB123456")).get().getValue());
+        System.out.println(query.query(QueryRequest.createRequest("scope/cmtsXYZ")).get().getValue());
     }
 }

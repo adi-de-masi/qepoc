@@ -16,10 +16,10 @@ import java.util.regex.Pattern;
 import javax.xml.bind.JAXB;
 
 import ch.upc.ctsp.qepoc.rest.Query;
+import ch.upc.ctsp.qepoc.rest.config.AttributeComplexType;
+import ch.upc.ctsp.qepoc.rest.config.ConditionalComplexType;
+import ch.upc.ctsp.qepoc.rest.config.ReferenceComplexType;
 import ch.upc.ctsp.qepoc.rest.config.RuleCollection;
-import ch.upc.ctsp.qepoc.rest.config.RuleCollection.Attribute;
-import ch.upc.ctsp.qepoc.rest.config.RuleCollection.Conditional;
-import ch.upc.ctsp.qepoc.rest.config.RuleCollection.Reference;
 import ch.upc.ctsp.qepoc.rest.config.RuleSet;
 import ch.upc.ctsp.qepoc.rest.model.PathDescription;
 import ch.upc.ctsp.qepoc.rest.model.PathDescription.FixedPathComp;
@@ -37,12 +37,13 @@ import ch.upc.ctsp.qepoc.rest.spi.Backend;
  */
 public class QueryBuilder {
 
-    private final Map<PathDescription, Switch.Builder> builders        = new LinkedHashMap<PathDescription, Switch.Builder>();
+    private final Map<PathDescription, Switch.Builder> builders         = new LinkedHashMap<PathDescription, Switch.Builder>();
+    private final Map<PathDescription, Switch.Builder> iterableBuilders = new LinkedHashMap<PathDescription, Switch.Builder>();
 
-    private static final Pattern                       variablePattern = Pattern.compile(Pattern.quote("{") + "([a-zA-Z]+)" + Pattern.quote("}"));
+    private static final Pattern                       VARIABLE_PATTERN = Pattern.compile(Pattern.quote("{") + "([a-zA-Z]+)" + Pattern.quote("}"));
 
     public QueryBuilder appendNativeBackend(final PathDescription path, final Backend backend) {
-        getBuilderForPath(path).appendCase().path(path).backend(backend);
+        getBuilderForPath(builders, path).appendCase().path(path).backend(backend);
         return this;
     }
 
@@ -114,7 +115,7 @@ public class QueryBuilder {
         final String[] pathComps = reference.split("/");
         final Alias.Builder aliasBuilder = new Alias.Builder();
         for (final String pathComp : pathComps) {
-            final Matcher matcher = variablePattern.matcher(pathComp);
+            final Matcher matcher = VARIABLE_PATTERN.matcher(pathComp);
             final StringBuilder patternSB = new StringBuilder();
             int lastPos = 0;
             final List<String> variables = new ArrayList<String>();
@@ -153,7 +154,7 @@ public class QueryBuilder {
      * @param conditions
      */
     private void fillBuilders(final RuleCollection rules, final PathDescription path, final List<String> conditions) {
-        for (final Conditional conditional : rules.getConditional()) {
+        for (final ConditionalComplexType conditional : rules.getConditional()) {
             final ArrayList<String> newConditions = new ArrayList<String>(conditions);
             newConditions.add(conditional.getCondition());
             fillBuilders(conditional, path, newConditions);
@@ -161,17 +162,28 @@ public class QueryBuilder {
         for (final RuleSet ruleSet : rules.getRuleSet()) {
             final PathDescription ruleSetPath = new PathDescription.Builder(path).appendString(ruleSet.getPath()).build();
             fillBuilders(ruleSet, ruleSetPath, conditions);
+            final String iterableReference = ruleSet.getIterableReference();
+            if (iterableReference != null) {
+                final PathDescription.Builder referenceNameBuilder = new PathDescription.Builder();
+                final PathComp[] components = ruleSetPath.getComponents();
+                for (int i = 0; i < components.length - 1; i++) {
+                    referenceNameBuilder.appendComponent(components[i]);
+                }
+                final PathDescription iterablePlace = referenceNameBuilder.build();
+                final Switch.CaseBuilder newCase = getBuilderForPath(iterableBuilders, iterablePlace).appendCase();
+                newCase.path(iterablePlace).backend(buildAlias(iterableReference, path, iterablePlace, false));
+            }
         }
-        for (final Attribute attribute : rules.getAttribute()) {
+        for (final AttributeComplexType attribute : rules.getAttribute()) {
             final PathDescription attributePath = new PathDescription.Builder(path).appendString(attribute.getName()).build();
-            final Switch.Builder builder = getBuilderForPath(attributePath);
+            final Switch.Builder builder = getBuilderForPath(builders, attributePath);
             final Switch.CaseBuilder newCase = builder.appendCase();
             newCase.path(attributePath).backend(buildAlias(attribute.getReference(), path, attributePath, false));
             appendConditions(newCase, conditions, path);
         }
-        for (final Reference reference : rules.getReference()) {
+        for (final ReferenceComplexType reference : rules.getReference()) {
             final PathDescription referencePath = new PathDescription.Builder(path).appendString(reference.getName()).build();
-            final Switch.Builder builder = getBuilderForPath(referencePath);
+            final Switch.Builder builder = getBuilderForPath(builders, referencePath);
             final Switch.CaseBuilder newCase = builder.appendCase();
             newCase.path(referencePath).backend(buildAlias(reference.getReference(), path, referencePath, true));
             appendConditions(newCase, conditions, path);
@@ -187,7 +199,7 @@ public class QueryBuilder {
         }
     }
 
-    private Switch.Builder getBuilderForPath(final PathDescription attributePath) {
+    private Switch.Builder getBuilderForPath(final Map<PathDescription, Builder> builders, final PathDescription attributePath) {
         final PathDescription normalPath = attributePath.normalize();
         final Switch.Builder existingBuilder = builders.get(normalPath);
         if (existingBuilder != null) {

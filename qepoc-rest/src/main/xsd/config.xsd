@@ -6,6 +6,7 @@
     <complexContent>
       <extension base="tns:ruleCollection">
         <attribute name="path" type="string"></attribute>
+        <attribute name="iterable-reference" type="string"></attribute>
       </extension>
     </complexContent>
   </complexType>
