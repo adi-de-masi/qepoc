@@ -86,7 +86,7 @@ public class QueryImpl implements Query {
                     nextNode = ((VariableNode) currentNode).getSubNode();
                     parameters.add(pathComp);
                 } else if (currentNode instanceof BackendNode) {
-                    return callBackend((BackendNode) currentNode, request, parameters, pathLength - 1);
+                    return callBackend(((BackendNode) currentNode).getWrapper(), request, parameters, pathLength - 1);
                 } else {
                     throw new RuntimeException("Unknown Node Type " + currentNode);
                 }
@@ -96,10 +96,17 @@ public class QueryImpl implements Query {
                 currentNode = nextNode;
             }
             if (currentNode instanceof BackendNode) {
-                ret.takeResultFrom(callBackend((BackendNode) currentNode, request, parameters, pathLength));
+                ret.takeResultFrom(callBackend(((BackendNode) currentNode).getWrapper(), request, parameters, pathLength));
             } else if (currentNode instanceof FixedListNode) {
                 ret.takeResultFrom(new DirectResult<QueryResult>(
                         new QueryResult(createNodeList(((FixedListNode) currentNode).getSubNodes().keySet()))));
+            } else if (currentNode instanceof VariableNode) {
+                final BackendWrapper iterableBackend = ((VariableNode) currentNode).getIterable();
+                if (iterableBackend == null) {
+                    ret.takeResultFrom(new DirectResult<QueryResult>(new QueryResult(null)));
+                } else {
+                    ret.takeResultFrom(callBackend(iterableBackend, request, parameters, pathLength));
+                }
             }
             return ret;
         } catch (final Throwable t) {
@@ -153,10 +160,48 @@ public class QueryImpl implements Query {
         }
     }
 
-    private CallbackFuture<QueryResult> callBackend(final BackendNode backendNode, final QueryRequest request, final List<String> parameters,
+    public void registerIterableBackend(final PathDescription path, final BackendWrapper backend) {
+        AbstractRegistryNode currentNode = rootNode;
+
+        final PathComp[] components = path.getComponents();
+        final List<String> variableNames = new ArrayList<String>();
+        for (int i = 0; i < components.length; i++) {
+            final PathComp currentPathComp = components[i];
+            if (currentPathComp instanceof FixedPathComp) {
+                final FixedPathComp fixedPathComp = (FixedPathComp) currentPathComp;
+                if (currentNode instanceof FixedListNode) {
+                    final Map<String, AbstractRegistryNode> subNodes = ((FixedListNode) currentNode).getSubNodes();
+                    final AbstractRegistryNode existingNextNode = subNodes.get(fixedPathComp.getValue());
+                    if (existingNextNode == null) {
+                        throw new RuntimeException("Cannot register iterable backend at " + path);
+                    }
+                    currentNode = existingNextNode;
+                } else {
+                    throw new RuntimeException("Cannot register iterable backend at " + path);
+                }
+            } else if (currentPathComp instanceof VariablePathComp) {
+                if (currentNode instanceof VariableNode) {
+                    final VariableNode variableNode = (VariableNode) currentNode;
+                    variableNames.add(((VariablePathComp) currentPathComp).getVariableName());
+                    final AbstractRegistryNode existingSubNode = variableNode.getSubNode();
+                    if (existingSubNode == null) {
+                        throw new RuntimeException("Cannot register iterable backend at " + path);
+                    }
+                    currentNode = existingSubNode;
+                } else {
+                    throw new RuntimeException("Cannot register iterable backend at " + path);
+                }
+            } else {
+                throw new RuntimeException("Cannot register iterable backend at " + path);
+            }
+        }
+        ((VariableNode) currentNode).setIterable(backend);
+    }
+
+    private CallbackFuture<QueryResult> callBackend(final BackendWrapper backendWrapper, final QueryRequest request, final List<String> parameters,
             final int pathLength) {
         final Builder contextBuilder = new QueryContext.Builder().request(request).parameterValues(parameters).pathLength(pathLength).query(this);
-        final CallbackFuture<QueryResult> result = backendNode.getWrapper().call(contextBuilder);
+        final CallbackFuture<QueryResult> result = backendWrapper.call(contextBuilder);
         handleCache(request, result);
         return result;
     }

@@ -63,41 +63,11 @@ public class QueryBuilder {
         final QueryImpl impl = new QueryImpl();
         for (final Entry<PathDescription, Builder> builderEntry : builders.entrySet()) {
             final PathDescription path = builderEntry.getKey();
-            impl.registerBackend(path, builderEntry.getValue().build(new VariableResolver() {
-
-                @Override
-                public void appendPath(final PathBuilder builder, final String variableName, final String[] parameterNames) {
-                    if (Arrays.asList(parameterNames).contains(variableName)) {
-                        // Parameter with given name found -> add and return
-                        builder.addVariableEntry(variableName);
-                        return;
-                    }
-                    final PathDescription resolveablePath = path.replaceParameterNames(parameterNames);
-                    final PathComp[] components = resolveablePath.getComponents();
-                    for (int i = components.length - 1; i > 0; i--) {
-                        final PathComp currentComp = components[i];
-                        if (currentComp instanceof FixedPathComp) {
-                            final PathDescription variablePath = new PathDescription.Builder(resolveablePath.getHeadPath(i)).appendComponent(
-                                    new FixedPathComp(variableName)).build();
-                            if (builders.containsKey(variablePath.normalize())) {
-                                // Variable found
-                                final PathBuilder subpath = builder.createSubpath();
-                                for (final PathComp pathComp : variablePath.getComponents()) {
-                                    if (pathComp instanceof FixedPathComp) {
-                                        subpath.addConstEntry(((FixedPathComp) pathComp).getValue());
-                                    } else if (pathComp instanceof VariablePathComp) {
-                                        subpath.addVariableEntry(((VariablePathComp) pathComp).getVariableName());
-                                    } else {
-                                        throw new RuntimeException("Unknown PathComp " + pathComp);
-                                    }
-                                }
-                                return;
-                            }
-                        }
-                    }
-                    throw new RuntimeException("Unresolveable variable " + variableName);
-                }
-            }));
+            impl.registerBackend(path, builderEntry.getValue().build(makeVariableResolver(path)));
+        }
+        for (final Entry<PathDescription, Builder> builderEntry : iterableBuilders.entrySet()) {
+            final PathDescription path = builderEntry.getKey();
+            impl.registerIterableBackend(path, builderEntry.getValue().build(makeVariableResolver(path)));
         }
         System.out.println(impl.dump());
         return impl;
@@ -223,5 +193,43 @@ public class QueryBuilder {
         final Switch.Builder newBuilder = new Switch.Builder();
         builders.put(normalPath, newBuilder);
         return newBuilder;
+    }
+
+    private VariableResolver makeVariableResolver(final PathDescription path) {
+        return new VariableResolver() {
+
+            @Override
+            public void appendPath(final PathBuilder builder, final String variableName, final String[] parameterNames) {
+                if (Arrays.asList(parameterNames).contains(variableName)) {
+                    // Parameter with given name found -> add and return
+                    builder.addVariableEntry(variableName);
+                    return;
+                }
+                final PathDescription resolveablePath = path.replaceParameterNames(parameterNames);
+                final PathComp[] components = resolveablePath.getComponents();
+                for (int i = components.length - 1; i > 0; i--) {
+                    final PathComp currentComp = components[i];
+                    if (currentComp instanceof FixedPathComp) {
+                        final PathDescription variablePath = new PathDescription.Builder(resolveablePath.getHeadPath(i)).appendComponent(
+                                new FixedPathComp(variableName)).build();
+                        if (builders.containsKey(variablePath.normalize())) {
+                            // Variable found
+                            final PathBuilder subpath = builder.createSubpath();
+                            for (final PathComp pathComp : variablePath.getComponents()) {
+                                if (pathComp instanceof FixedPathComp) {
+                                    subpath.addConstEntry(((FixedPathComp) pathComp).getValue());
+                                } else if (pathComp instanceof VariablePathComp) {
+                                    subpath.addVariableEntry(((VariablePathComp) pathComp).getVariableName());
+                                } else {
+                                    throw new RuntimeException("Unknown PathComp " + pathComp);
+                                }
+                            }
+                            return;
+                        }
+                    }
+                }
+                throw new RuntimeException("Unresolveable variable " + variableName);
+            }
+        };
     }
 }

@@ -143,5 +143,6 @@ public class PocMain {
         }
         System.out.println(query.query(QueryRequest.createRequest("modem/00AB123456")).get().getValue());
         System.out.println(query.query(QueryRequest.createRequest("scope/cmtsXYZ")).get().getValue());
+        System.out.println(query.query(QueryRequest.createRequest("modem")).get().getValue());
     }
 }
