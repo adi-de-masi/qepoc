@@ -21,6 +21,7 @@ import ch.upc.ctsp.qepoc.rest.model.CallbackFuture;
 import ch.upc.ctsp.qepoc.rest.model.PathDescription;
 import ch.upc.ctsp.qepoc.rest.model.QueryRequest;
 import ch.upc.ctsp.qepoc.rest.model.QueryResult;
+import ch.upc.ctsp.qepoc.rest.model.QueryTrace;
 import ch.upc.ctsp.qepoc.rest.spi.Backend;
 import ch.upc.ctsp.qepoc.rest.spi.CallbackFutureImpl;
 import ch.upc.ctsp.qepoc.rest.spi.DirectResult;
@@ -65,7 +66,8 @@ public class PocMain {
                         final String result = Client.query(requests.toArray(new String[requests.size()]));
                         final String[] answers = result.split("\n");
                         for (int i = 0; i < results.size(); i++) {
-                            results.get(i).setResultValue(new QueryResult(answers[i], queryTime, null));
+                            results.get(i).setResultValue(
+                                    new QueryResult.Builder().value(answers[i]).creationDate(queryTime).traceNodeType("bulk-mock-backend").build());
                         }
                     } catch (final IOException e) {
                         for (final CallbackFutureImpl<QueryResult> result : results) {
@@ -97,7 +99,7 @@ public class PocMain {
                 System.out.println("Querying (" + (++queryNr) + "): " + requestCommand);
                 System.out.println("-------------------------------------------------------------------------------------------------");
                 final String result = Client.query(requestCommand);
-                return new DirectResult<QueryResult>(new QueryResult(result.trim(), queryTime, null));
+                return new DirectResult<QueryResult>(new QueryResult.Builder().value(result.trim()).creationDate(queryTime).build());
             } catch (final Throwable e) {
                 throw new RuntimeException("Cannot call " + remainingPath, e);
             }
@@ -139,6 +141,7 @@ public class PocMain {
             System.out.println("Result: " + queryResult.getValue());
             System.out.println("Query-Time: " + (endTime - startTime) + " ms");
             System.out.println("Data-Age: " + (endTime - queryResult.getCreationDate().getTime()) + " ms");
+            System.out.println(QueryTrace.dumpTrace(queryResult));
             Thread.sleep(1000);
         }
         System.out.println(query.query(QueryRequest.createRequest("modem/00AB123456")).get().getValue());

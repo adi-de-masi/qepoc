@@ -171,7 +171,7 @@ public class Switch implements Backend {
                 if (matchingIndex >= 0) {
                     return call(conditionalEntries.get(matchingIndex).getValue(), context);
                 } else {
-                    return new DirectResult<QueryResult>(new QueryResult(null));
+                    return new DirectResult<QueryResult>(new QueryResult.Builder().build());
                 }
             }
         });

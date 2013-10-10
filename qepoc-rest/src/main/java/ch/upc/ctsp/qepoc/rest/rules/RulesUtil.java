@@ -3,6 +3,8 @@
  */
 package ch.upc.ctsp.qepoc.rest.rules;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -17,6 +19,7 @@ import ch.upc.ctsp.qepoc.rest.model.CallbackFuture;
 import ch.upc.ctsp.qepoc.rest.model.CallbackFuture.CallbackHandler;
 import ch.upc.ctsp.qepoc.rest.model.QueryRequest;
 import ch.upc.ctsp.qepoc.rest.model.QueryResult;
+import ch.upc.ctsp.qepoc.rest.model.QueryResult.Builder;
 import ch.upc.ctsp.qepoc.rest.spi.CallbackFutureImpl;
 import ch.upc.ctsp.qepoc.rest.spi.DirectResult;
 import ch.upc.ctsp.qepoc.rest.spi.QueryContext;
@@ -39,11 +42,15 @@ public class RulesUtil {
      */
     public static CallbackFuture<QueryResult> createComponentLookup(final ComponentEntry componentEntry, final QueryContext context) {
         if (componentEntry instanceof ConstComponentEntry) {
-            return new DirectResult<QueryResult>(new QueryResult(((ConstComponentEntry) componentEntry).getComponentName()));
+            final String componentName = ((ConstComponentEntry) componentEntry).getComponentName();
+            return new DirectResult<QueryResult>(new QueryResult.Builder().value(componentName).traceNodeType("constant-entry").query(componentName)
+                    .build());
         }
         if (componentEntry instanceof VariableComponentEntry) {
             final Map<String, String> parameters = context.getParameterMap();
-            return new DirectResult<QueryResult>(new QueryResult(parameters.get(((VariableComponentEntry) componentEntry).getVariableName())));
+            final String variableName = ((VariableComponentEntry) componentEntry).getVariableName();
+            return new DirectResult<QueryResult>(new QueryResult.Builder().value(parameters.get(variableName)).traceNodeType("variable-entry")
+                    .query("{" + variableName + "}").build());
         }
         if (componentEntry instanceof LookupComponentEntry) {
             return processLookup((LookupComponentEntry) componentEntry, context, false);
@@ -55,12 +62,27 @@ public class RulesUtil {
 
                 @Override
                 public CallbackFuture<QueryResult> processResponses(final List<QueryResult> components) {
-                    return new DirectResult<QueryResult>(new QueryResult(patternEntry.pattern.format(collectValuesAsArray(components))));
+                    final QueryResult.Builder builder = new QueryResult.Builder();
+                    for (final QueryResult queryResult : components) {
+                        builder.appendResult(queryResult);
+                    }
+                    return new DirectResult<QueryResult>(builder.value(patternEntry.pattern.format(collectValuesAsArray(components)))
+                            .traceNodeType("pattern-entry").query(patternEntry.pattern.toPattern()).build());
                 }
 
             }, context);
         }
         throw new IllegalArgumentException("Component-Type " + componentEntry.getClass() + " not supported");
+    }
+
+    public static String encodePath(final Iterable<String> path) {
+        final StringBuffer sb = new StringBuffer();
+        for (final String part : path) {
+            sb.append("/");
+            sb.append(encode(part));
+        }
+        return sb.toString();
+
     }
 
     public static <R, V> CallbackFuture<R> processCallbacks(final List<CallbackFuture<V>> callbacks,
@@ -136,15 +158,24 @@ public class RulesUtil {
 
             @Override
             public CallbackFuture<QueryResult> processResponses(final List<QueryResult> components) {
-                final Date maxCreationDate = findOldestAge(components);
+                final Builder resultBuilder = new QueryResult.Builder();
+                resultBuilder.query(lookup.toString());
+                resultBuilder.traceNodeType("lookup");
+                for (final QueryResult queryResult : components) {
+                    resultBuilder.appendResult(queryResult);
+                }
                 final List<String> requestPath = collectValues(components);
                 final List<String> path = context.getRequest().getPath();
                 if (appendTail && context.getPathLength() != path.size()) {
                     requestPath.addAll(path.subList(context.getPathLength(), path.size()));
                 }
-                final QueryRequest executingRequest = new QueryRequest.Builder(context.getRequest()).path(requestPath).build();
+                try {
+                    final QueryRequest executingRequest = new QueryRequest.Builder(context.getRequest()).path(requestPath).build();
 
-                return withMaxCreationDate(context.getExecutingQuery().query(executingRequest), maxCreationDate);
+                    return withResultBuilder(context.getExecutingQuery().query(executingRequest), resultBuilder);
+                } catch (final Throwable t) {
+                    throw new RuntimeException("Error resolving path " + encodePath(requestPath), t);
+                }
             }
 
         }, context);
@@ -155,7 +186,7 @@ public class RulesUtil {
      * @param age
      * @return
      */
-    protected static CallbackFuture<QueryResult> withMaxCreationDate(final CallbackFuture<QueryResult> query, final Date maxCreationDate) {
+    protected static CallbackFuture<QueryResult> withResultBuilder(final CallbackFuture<QueryResult> query, final Builder resultBuilder) {
         return new CallbackFuture<QueryResult>() {
 
             @Override
@@ -165,12 +196,12 @@ public class RulesUtil {
 
             @Override
             public QueryResult get() throws InterruptedException, ExecutionException {
-                return query.get().withMaxCreationDate(maxCreationDate);
+                return query.get();
             }
 
             @Override
             public QueryResult get(final long timeout, final TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
-                return query.get(timeout, unit).withMaxCreationDate(maxCreationDate);
+                return query.get(timeout, unit);
             }
 
             @Override
@@ -194,9 +225,15 @@ public class RulesUtil {
 
                     @Override
                     public void handleValue(final QueryResult value) {
-                        handler.handleValue(value.withMaxCreationDate(maxCreationDate));
+                        handler.handleValue(createResult(value));
                     }
                 });
+            }
+
+            private QueryResult createResult(final QueryResult value) {
+                resultBuilder.appendResult(value);
+                resultBuilder.value(value.getValue());
+                return resultBuilder.build();
             }
         };
     }
@@ -216,6 +253,17 @@ public class RulesUtil {
             requestPath[i++] = resultComponent.getValue();
         }
         return requestPath;
+    }
+
+    private static String encode(final String part) {
+        if (part == null) {
+            return "<null>";
+        }
+        try {
+            return URLEncoder.encode(part, "utf-8");
+        } catch (final UnsupportedEncodingException e) {
+            throw new RuntimeException("This VM doesnt support utf-8", e);
+        }
     }
 
     private static Date findOldestAge(final List<QueryResult> components) {

@@ -56,23 +56,34 @@ public class QueryImpl implements Query {
     @Override
     public CallbackFuture<QueryResult> query(final QueryRequest request) {
         try {
-            final String key = createKeyFromPath(request.getPath());
+            final String key = request.getPathString();
             final CallbackFutureImpl<QueryResult> ret = new CallbackFutureImpl<QueryResult>();
             synchronized (oldResults) {
                 final QueryResult oldResult = oldResults.get(key);
                 if (oldResult != null && oldResult.getCreationDate().after(request.getAllowedSince())) {
-                    System.out.println("Cached result for " + key + ": " + oldResult.getValue());
                     return new DirectResult<QueryResult>(oldResult);
                 }
                 final WeakReference<CallbackFuture<QueryResult>> pendingResultReference = pendingQuery.get(key);
                 if (pendingResultReference != null) {
                     final CallbackFuture<QueryResult> pendingResult = pendingResultReference.get();
-                    System.out.println("Pending Query for " + key);
-                    return pendingResult;
+                    if (pendingResult != null) {
+                        pendingResult.registerCallback(new CallbackHandler<QueryResult>() {
+
+                            @Override
+                            public void handleException(final Throwable exception) {
+                                ret.setResultException(exception);
+                            }
+
+                            @Override
+                            public void handleValue(final QueryResult value) {
+                                ret.setResultValue(value.cacheInstance());
+                            }
+                        });
+                        return ret;
+                    }
                 }
                 pendingQuery.put(key, new WeakReference<CallbackFuture<QueryResult>>(ret));
             }
-            System.out.println("Query for " + key);
             AbstractRegistryNode currentNode = rootNode;
             final List<String> path = request.getPath();
             final List<String> parameters = new ArrayList<String>();
@@ -98,19 +109,19 @@ public class QueryImpl implements Query {
             if (currentNode instanceof BackendNode) {
                 ret.takeResultFrom(callBackend(((BackendNode) currentNode).getWrapper(), request, parameters, pathLength));
             } else if (currentNode instanceof FixedListNode) {
-                ret.takeResultFrom(new DirectResult<QueryResult>(
-                        new QueryResult(createNodeList(((FixedListNode) currentNode).getSubNodes().keySet()))));
+                ret.takeResultFrom(new DirectResult<QueryResult>(new QueryResult.Builder()
+                        .value(createNodeList(((FixedListNode) currentNode).getSubNodes().keySet())).traceNodeType("enumerate-om").build()));
             } else if (currentNode instanceof VariableNode) {
                 final BackendWrapper iterableBackend = ((VariableNode) currentNode).getIterable();
                 if (iterableBackend == null) {
-                    ret.takeResultFrom(new DirectResult<QueryResult>(new QueryResult(null)));
+                    ret.takeResultFrom(new DirectResult<QueryResult>(new QueryResult.Builder().traceNodeType("enumerate-values").build()));
                 } else {
                     ret.takeResultFrom(callBackend(iterableBackend, request, parameters, pathLength));
                 }
             }
             return ret;
         } catch (final Throwable t) {
-            throw new RuntimeException("Exception in Path " + request.getPath(), t);
+            throw new RuntimeException("Exception in Path " + request.getPathString(), t);
         }
     }
 
@@ -202,17 +213,8 @@ public class QueryImpl implements Query {
             final int pathLength) {
         final Builder contextBuilder = new QueryContext.Builder().request(request).parameterValues(parameters).pathLength(pathLength).query(this);
         final CallbackFuture<QueryResult> result = backendWrapper.call(contextBuilder);
-        handleCache(request, result);
+        handleResult(request, result);
         return result;
-    }
-
-    private String createKeyFromPath(final List<String> path) {
-        final StringBuffer sb = new StringBuffer();
-        for (final String part : path) {
-            sb.append("/");
-            sb.append(encode(part));
-        }
-        return sb.toString();
     }
 
     private AbstractRegistryNode createNextNode(final PathComp nextPathComp, final AbstractRegistryNode currentNode, final BackendWrapper backend,
@@ -257,8 +259,8 @@ public class QueryImpl implements Query {
         return encodedString;
     }
 
-    private void handleCache(final QueryRequest request, final CallbackFuture<QueryResult> result) {
-        final String path = createKeyFromPath(request.getPath());
+    private void handleResult(final QueryRequest request, final CallbackFuture<QueryResult> result) {
+        final String path = request.getPathString();
         result.registerCallback(new CallbackHandler<QueryResult>() {
 
             @Override
@@ -273,11 +275,11 @@ public class QueryImpl implements Query {
                 synchronized (oldResults) {
                     final QueryResult cachedResult = oldResults.get(path);
                     if (cachedResult == null || cachedResult.getCreationDate().before(value.getCreationDate())) {
-                        oldResults.put(path, value);
+                        oldResults.put(path, value.cacheInstance());
                     }
                     pendingQuery.remove(path);
                 }
-                System.out.println(path + " -> " + value.getValue());
+                value.getTrace().setQuery(request.getPathString());
             }
         });
     }

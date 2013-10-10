@@ -7,6 +7,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 
@@ -16,6 +17,8 @@ import ch.upc.ctsp.qepoc.rest.model.CallbackFuture;
 import ch.upc.ctsp.qepoc.rest.model.PathDescription;
 import ch.upc.ctsp.qepoc.rest.model.QueryRequest;
 import ch.upc.ctsp.qepoc.rest.model.QueryResult;
+import ch.upc.ctsp.qepoc.rest.model.QueryResult.Builder;
+import ch.upc.ctsp.qepoc.rest.model.QueryTrace;
 import ch.upc.ctsp.qepoc.rest.rules.Alias;
 import ch.upc.ctsp.qepoc.rest.rules.PathBuilder;
 import ch.upc.ctsp.qepoc.rest.spi.Backend;
@@ -34,7 +37,7 @@ public class TestQuery {
 
             @Override
             public CallbackFuture<QueryResult> query(final QueryContext context) {
-                return new DirectResult(QueryResult.newWithLifeTime(context.getParameterMap().get("value"), 5));
+                return new DirectResult(new Builder().value(context.getParameterMap().get("value")).lifeTime(TimeUnit.MINUTES, 5).build());
             }
         });
         final VariableResolver emptyResolver = new VariableResolver() {
@@ -44,15 +47,20 @@ public class TestQuery {
             }
         };
         query.registerBackend(PathDescription.createFromString("alias1/{value}"), new Alias.Builder().addConstEntry("value")
-                .addVariableEntry("value").build(emptyResolver));
+                .addVariableEntry("value").parameterNames(new String[] { "value" }).build(emptyResolver));
         query.registerBackend(PathDescription.createFromString("alias2"), new Alias.Builder().addConstEntry("value").appendTail()
                 .build(emptyResolver));
-        final Alias.Builder alias3Builder = new Alias.Builder().addConstEntry("value");
+        final Alias.Builder alias3Builder = new Alias.Builder().addConstEntry("value").parameterNames(new String[] { "value" });
         alias3Builder.createPatternEntry("{0} World").addVariableEntry("value");
         query.registerBackend(PathDescription.createFromString("alias3/{value}"), alias3Builder.build(emptyResolver));
+
+        System.out.println(query.dump());
+
         final String value = query.query(QueryRequest.createRequest("value/Hello World")).get().getValue();
         assertEquals("Hello World", value);
-        final String aliasValue = query.query(QueryRequest.createRequest("alias1/Hello Mirror World")).get().getValue();
+        final QueryResult aliasResult = query.query(QueryRequest.createRequest("alias1/Hello Mirror World")).get();
+        System.out.println(QueryTrace.dumpTrace(aliasResult));
+        final String aliasValue = aliasResult.getValue();
         assertEquals("Hello Mirror World", aliasValue);
         final String secondAliasValue = query.query(QueryRequest.createRequest("alias2/Hello second Mirror World")).get().getValue();
         assertEquals("Hello second Mirror World", secondAliasValue);
@@ -67,7 +75,7 @@ public class TestQuery {
 
             @Override
             public CallbackFuture<QueryResult> query(final QueryContext context) {
-                return new DirectResult(QueryResult.newWithLifeTime(context.getParameterMap().get("value"), 5));
+                return new DirectResult(new Builder().value(context.getParameterMap().get("value")).lifeTime(TimeUnit.MINUTES, 5).build());
             }
         });
         query.registerBackend(PathDescription.createFromString("alias/"), new Backend() {
