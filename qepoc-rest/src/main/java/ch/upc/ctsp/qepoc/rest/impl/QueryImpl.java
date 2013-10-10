@@ -76,7 +76,7 @@ public class QueryImpl implements Query {
 
                             @Override
                             public void handleValue(final QueryResult value) {
-                                ret.setResultValue(value.cacheInstance());
+                                ret.setResultValue(value.concurrentInstance());
                             }
                         });
                         return ret;

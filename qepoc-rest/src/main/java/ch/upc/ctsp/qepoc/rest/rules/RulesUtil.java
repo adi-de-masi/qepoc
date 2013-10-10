@@ -4,6 +4,7 @@
 package ch.upc.ctsp.qepoc.rest.rules;
 
 import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Date;
@@ -75,14 +76,36 @@ public class RulesUtil {
         throw new IllegalArgumentException("Component-Type " + componentEntry.getClass() + " not supported");
     }
 
+    public static String decodePathPart(final String part) {
+        if (part == null) {
+            return "<null>";
+        }
+        try {
+            return URLDecoder.decode(part, "utf-8");
+        } catch (final UnsupportedEncodingException e) {
+            throw new RuntimeException("This VM doesnt support utf-8", e);
+        }
+    }
+
     public static String encodePath(final Iterable<String> path) {
         final StringBuffer sb = new StringBuffer();
         for (final String part : path) {
             sb.append("/");
-            sb.append(encode(part));
+            sb.append(encodePathPart(part));
         }
         return sb.toString();
 
+    }
+
+    public static String encodePathPart(final String part) {
+        if (part == null) {
+            return "<null>";
+        }
+        try {
+            return URLEncoder.encode(part, "utf-8");
+        } catch (final UnsupportedEncodingException e) {
+            throw new RuntimeException("This VM doesnt support utf-8", e);
+        }
     }
 
     public static <R, V> CallbackFuture<R> processCallbacks(final List<CallbackFuture<V>> callbacks,
@@ -253,17 +276,6 @@ public class RulesUtil {
             requestPath[i++] = resultComponent.getValue();
         }
         return requestPath;
-    }
-
-    private static String encode(final String part) {
-        if (part == null) {
-            return "<null>";
-        }
-        try {
-            return URLEncoder.encode(part, "utf-8");
-        } catch (final UnsupportedEncodingException e) {
-            throw new RuntimeException("This VM doesnt support utf-8", e);
-        }
     }
 
     private static Date findOldestAge(final List<QueryResult> components) {

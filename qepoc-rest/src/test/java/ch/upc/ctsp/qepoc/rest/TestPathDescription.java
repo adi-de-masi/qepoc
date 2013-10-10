@@ -34,10 +34,4 @@ public class TestPathDescription {
         final PathDescription multiPartPath = PathDescription.createFromString("comp/{param}");
         assertEquals("comp/{param}", multiPartPath.toString());
     }
-
-    @Test
-    public void testPrefixPathWithVariables() {
-        final PathDescription multiPartPath = PathDescription.createFromString("comp/{param}/");
-        assertEquals("comp/{param}/", multiPartPath.toString());
-    }
 }

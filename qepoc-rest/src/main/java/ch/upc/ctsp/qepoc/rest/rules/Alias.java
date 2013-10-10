@@ -12,6 +12,10 @@ import java.util.regex.Pattern;
 import ch.upc.ctsp.qepoc.rest.impl.BackendWrapper;
 import ch.upc.ctsp.qepoc.rest.impl.VariableResolver;
 import ch.upc.ctsp.qepoc.rest.model.CallbackFuture;
+import ch.upc.ctsp.qepoc.rest.model.PathDescription;
+import ch.upc.ctsp.qepoc.rest.model.PathDescription.FixedPathComp;
+import ch.upc.ctsp.qepoc.rest.model.PathDescription.PathComp;
+import ch.upc.ctsp.qepoc.rest.model.PathDescription.VariablePathComp;
 import ch.upc.ctsp.qepoc.rest.model.QueryResult;
 import ch.upc.ctsp.qepoc.rest.spi.Backend;
 import ch.upc.ctsp.qepoc.rest.spi.QueryContext;
@@ -26,6 +30,7 @@ public class Alias implements Backend {
         private boolean              appendTail       = false;
         private String               referenceString;
         private String[]             parameterNames   = new String[0];
+        private PathDescription      relativePath;
 
         private static final Pattern VARIABLE_PATTERN = Pattern.compile(Pattern.quote("{") + "([a-zA-Z]+)" + Pattern.quote("}"));
 
@@ -58,8 +63,33 @@ public class Alias implements Backend {
             return this;
         }
 
+        public Builder relativePath(final PathDescription path) {
+            relativePath = path;
+            return this;
+        }
+
         private void buildAlias(final VariableResolver variableResolver) {
-            final String[] pathComps = referenceString.split("/");
+            final String[] rawComps = referenceString.split("/");
+            final List<String> pathComps = new ArrayList<String>();
+            final int startIndex;
+            if (rawComps[0].isEmpty()) {
+                // path begins with / -> absolute path
+                startIndex = 1;
+            } else {
+                // path has no / at start -> relative path
+                // first fill in current path
+                startIndex = 0;
+                for (final PathComp pathComp : relativePath.getComponents()) {
+                    if (pathComp instanceof FixedPathComp) {
+                        pathComps.add(((FixedPathComp) pathComp).getValue());
+                    } else if (pathComp instanceof VariablePathComp) {
+                        pathComps.add("{" + ((VariablePathComp) pathComp).getVariableName() + "}");
+                    }
+                }
+            }
+            for (int i = startIndex; i < rawComps.length; i++) {
+                pathComps.add(RulesUtil.decodePathPart(rawComps[i]));
+            }
             for (final String pathComp : pathComps) {
                 final Matcher matcher = VARIABLE_PATTERN.matcher(pathComp);
                 final StringBuilder patternSB = new StringBuilder();

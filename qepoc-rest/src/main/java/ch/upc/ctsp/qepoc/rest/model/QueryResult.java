@@ -112,6 +112,13 @@ public class QueryResult {
         return new QueryResult(value, creationDate, validUntil, trace);
     }
 
+    public QueryResult concurrentInstance() {
+        final QueryTrace trace = new QueryTrace();
+        trace.setNodeType("concurrent");
+        trace.setQuery(this.trace.getQuery());
+        return new QueryResult(value, creationDate, validUntil, trace);
+    }
+
     public QueryResult withMaxCreationDate(final Date maxCreationDate) {
         if (maxCreationDate == null || maxCreationDate.after(creationDate)) {
             return this;

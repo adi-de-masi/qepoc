@@ -21,14 +21,13 @@ import lombok.Data;
 public class PathDescription {
     public static class Builder {
         private final List<PathComp> components = new ArrayList<PathComp>();
-        private boolean              isPrefix   = false;
+        private boolean              isAbsolute = false;
 
         public Builder() {
         }
 
         public Builder(final PathDescription origin) {
-            isPrefix = origin.isPrefix;
-            components.addAll(Arrays.asList(origin.getComponents()));
+            appendPath(origin);
         }
 
         public Builder appendComponent(final PathComp component) {
@@ -36,9 +35,28 @@ public class PathDescription {
             return this;
         }
 
+        public Builder appendPath(final PathDescription path) {
+            if (path.isAbsolute()) {
+                components.clear();
+                isAbsolute = true;
+            }
+            components.addAll(Arrays.asList(path.getComponents()));
+            return this;
+        }
+
         public Builder appendString(final String path) {
-            isPrefix = path.endsWith("/");
+            isAbsolute = path.startsWith("/");
+            int skipCount;
+            if (isAbsolute) {
+                components.clear();
+                skipCount = 1;
+            } else {
+                skipCount = 0;
+            }
             for (final String compDescription : path.split("/")) {
+                if (skipCount-- > 0) {
+                    continue;
+                }
                 if (compDescription.startsWith("{") && compDescription.endsWith("}")) {
                     components.add(new VariablePathComp(compDescription.substring(1, compDescription.length() - 1)));
                 } else {
@@ -49,13 +67,13 @@ public class PathDescription {
         }
 
         public Builder appendTail(final PathDescription path, final int fromIndex) {
-            isPrefix = path.isPrefix;
+            isAbsolute = path.isAbsolute;
             components.addAll(Arrays.asList(path.components).subList(fromIndex, path.components.length));
             return this;
         }
 
         public PathDescription build() {
-            return new PathDescription(isPrefix, components.toArray(new PathComp[components.size()]));
+            return new PathDescription(isAbsolute, components.toArray(new PathComp[components.size()]));
         }
     }
 
@@ -98,10 +116,10 @@ public class PathDescription {
     }
 
     private final PathComp[] components;
-    private final boolean    isPrefix;
+    private final boolean    isAbsolute;
 
-    public PathDescription(final boolean isPrefix, final PathComp[] components) {
-        this.isPrefix = isPrefix;
+    public PathDescription(final boolean isAbsolute, final PathComp[] components) {
+        this.isAbsolute = isAbsolute;
         this.components = components;
     }
 
@@ -123,7 +141,7 @@ public class PathDescription {
      * @param i
      */
     public PathDescription getHeadPath(final int headLength) {
-        return new PathDescription(isPrefix, Arrays.copyOf(components, headLength));
+        return new PathDescription(isAbsolute, Arrays.copyOf(components, headLength));
     }
 
     /**
@@ -156,7 +174,7 @@ public class PathDescription {
                 comps[i] = ANONYMOUS_VARIABLE_COMP;
             }
         }
-        return new PathDescription(isPrefix, comps);
+        return new PathDescription(isAbsolute, comps);
     }
 
     /**
@@ -173,12 +191,15 @@ public class PathDescription {
                 comps[i] = new VariablePathComp(parameterIter.next());
             }
         }
-        return new PathDescription(isPrefix, comps);
+        return new PathDescription(isAbsolute, comps);
     }
 
     @Override
     public String toString() {
         final StringBuilder builder = new StringBuilder();
+        if (isAbsolute) {
+            builder.append("/");
+        }
         for (final PathComp comp : components) {
             if (builder.length() > 0) {
                 builder.append("/");
@@ -190,9 +211,6 @@ public class PathDescription {
                 builder.append(((VariablePathComp) comp).getVariableName());
                 builder.append("}");
             }
-        }
-        if (isPrefix) {
-            builder.append("/");
         }
         return builder.toString();
     }

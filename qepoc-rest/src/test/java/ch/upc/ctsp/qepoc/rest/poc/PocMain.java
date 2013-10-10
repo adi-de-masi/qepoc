@@ -67,7 +67,8 @@ public class PocMain {
                         final String[] answers = result.split("\n");
                         for (int i = 0; i < results.size(); i++) {
                             results.get(i).setResultValue(
-                                    new QueryResult.Builder().value(answers[i]).creationDate(queryTime).traceNodeType("bulk-mock-backend").build());
+                                    new QueryResult.Builder().value(answers[i]).creationDate(queryTime)
+                                            .traceNodeType("bulk-mock-backend (" + queryNr + ")").build());
                         }
                     } catch (final IOException e) {
                         for (final CallbackFutureImpl<QueryResult> result : results) {

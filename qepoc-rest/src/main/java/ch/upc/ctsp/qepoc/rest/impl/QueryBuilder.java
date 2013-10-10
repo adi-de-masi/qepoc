@@ -126,7 +126,7 @@ public class QueryBuilder {
         if (isReference) {
             aliasBuilder.appendTail();
         }
-        return aliasBuilder.parameterNames(parameters).reference(reference);
+        return aliasBuilder.parameterNames(parameters).reference(reference).relativePath(parentPath);
     }
 
     private PathDescription createParentPath(final PathDescription path) {

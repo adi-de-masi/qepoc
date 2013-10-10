@@ -1,25 +1,25 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <rule-set xmlns="http://www.upc-cablecom.ch/query-engine/config">
-  <rule-set path="modem/{mac}" iterable-reference="mock/modemlist">
-    <attribute name="ip" reference="mock/modem/{mac}/ip" />
-    <attribute name="scopename" reference="mock/scopes/{ip}" scope="private" />
+  <rule-set path="modem/{mac}" iterable-reference="/mock/modemlist">
+    <attribute name="ip" reference="/mock/modem/{mac}/ip" />
+    <attribute name="scopename" reference="/mock/scopes/{ip}" scope="private" />
 
-    <reference name="scope" reference="scope/{scopename}" />
-    <reference name="cmts" reference="modem/{mac}/scope/cmts" />
+    <reference name="scope" reference="/scope/{scopename}" />
+    <reference name="cmts" reference="scope/cmts" />
 
 
-    <attribute name="cmtsname" reference="modem/{mac}/scope/cmtsname" />
-    <attribute name="cmId" reference="mock/cmts/{cmtsname}/modem/{mac}/cmId" />
-    <attribute name="cmtsip" reference="modem/{mac}/cmts/ip" />
-    <attribute name="mainUpstreamIfc" reference="mock/snmp/{cmtsip}/1.3.6.2.1.2.3.4.{cmId}" />
+    <attribute name="cmtsname" reference="scope/cmtsname" />
+    <attribute name="cmId" reference="/mock/cmts/{cmtsname}/modem/{mac}/cmId" />
+    <attribute name="cmtsip" reference="cmts/ip" />
+    <attribute name="mainUpstreamIfc" reference="/mock/snmp/{cmtsip}/1.3.6.2.1.2.3.4.{cmId}" />
   </rule-set>
 
   <rule-set path="scope/{scopename}">
-    <attribute name="cmtsname" reference="mock/scopes/{scopename}/cmts" scope="private" />
-    <reference name="cmts" reference="cmts/{cmtsname}" />
+    <attribute name="cmtsname" reference="/mock/scopes/{scopename}/cmts" scope="private" />
+    <reference name="cmts" reference="/cmts/{cmtsname}" />
   </rule-set>
 
   <rule-set path="cmts/{cmtsname}">
-    <attribute name="ip" reference="mock/cmts/{cmtsname}/ip" />
+    <attribute name="ip" reference="/mock/cmts/{cmtsname}/ip" />
   </rule-set>
 </rule-set>
